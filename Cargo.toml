@@ -1,0 +1,15 @@
+[package]
+name = "crate-inspector"
+version = "0.1.0"
+edition = "2021"
+description = "A library to inspect the public APIs of Rust crates"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rustdoc-json = "0.8"
+rustdoc-types = "0.23"
+serde_json = "1.0"
+
+[lib]
+path = "src/lib.rs"
