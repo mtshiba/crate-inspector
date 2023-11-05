@@ -1,5 +1,7 @@
 fn main() {
-    let builder = crate_inspector::CrateBuilder::default()
+    use crate_inspector::CrateBuilder;
+
+    let builder = CrateBuilder::default()
         .toolchain("nightly")
         .manifest_path("Cargo.toml");
     let krate = builder.build().unwrap();
