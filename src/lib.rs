@@ -1,3 +1,5 @@
+pub mod format;
+
 use std::ops::Deref;
 use std::path::Path;
 
@@ -9,6 +11,12 @@ pub trait CrateItem<'a> {
     fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, inner: &'a Self::Inner) -> Self;
     fn item(&self) -> &'a rustdoc_types::Item;
     fn inner(&self) -> &'a Self::Inner;
+    fn is_root_item(&self) -> bool {
+        self.item().crate_id == 0
+    }
+    fn is_external_item(&self) -> bool {
+        self.item().crate_id != 0
+    }
 }
 
 pub trait HasType {
@@ -71,6 +79,7 @@ impl<'a> ModuleItem<'a> {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FunctionItem<'a> {
+    krate: &'a Crate,
     item: &'a rustdoc_types::Item,
     func: &'a rustdoc_types::Function,
 }
@@ -83,8 +92,8 @@ impl<'a> CrateItem<'a> for FunctionItem<'a> {
             _ => None,
         }
     }
-    fn new(_krate: &'_ Crate, item: &'a rustdoc_types::Item, func: &'a Self::Inner) -> Self {
-        Self { item, func }
+    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, func: &'a Self::Inner) -> Self {
+        Self { krate, item, func }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
@@ -105,8 +114,25 @@ impl<'a> FunctionItem<'a> {
         self.item.name.as_ref().unwrap()
     }
 
+    pub fn is_method(&self) -> bool {
+        self.func.decl.inputs.first().is_some_and(|(name, _)| name == "self")
+    }
+
+    pub fn is_associated(&self) -> bool {
+        self.krate.all_impls()
+            .any(|imp| imp.item_ids().any(|id| id == &self.item.id))
+    }
+
     pub fn inputs(&self) -> impl Iterator<Item = &(String, Type)> {
         self.func.decl.inputs.iter()
+    }
+
+    pub fn output(&self) -> Option<&Type> {
+        self.func.decl.output.as_ref()
+    }
+
+    pub fn decl(&self) -> &rustdoc_types::FnDecl {
+        &self.func.decl
     }
 }
 
@@ -274,7 +300,7 @@ impl<'a> StructItem<'a> {
     }
 
     pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
-        self.krate.impls().filter(|imp| {
+        self.krate.all_impls().filter(|imp| {
             let Type::ResolvedPath(path) = imp.for_() else {
                 return false;
             };
@@ -432,7 +458,7 @@ impl<'a> EnumItem<'a> {
     }
 
     pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
-        self.krate.impls().filter(|imp| {
+        self.krate.all_impls().filter(|imp| {
             let Type::ResolvedPath(path) = imp.for_() else {
                 return false;
             };
@@ -530,7 +556,7 @@ impl<'a> ImplItem<'a> {
 
     pub fn functions(&self) -> impl Iterator<Item = FunctionItem> {
         self.items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Function(func) => Some(FunctionItem { item, func }),
+            rustdoc_types::ItemEnum::Function(func) => Some(FunctionItem { krate: self.krate, item, func }),
             _ => None,
         })
     }
@@ -597,10 +623,21 @@ impl Deref for Crate {
 }
 
 impl Crate {
-    pub fn items(&self) -> impl Iterator<Item = &rustdoc_types::Item> {
+    /// All items in the crate, including external items referenced locally.
+    pub fn all_items(&self) -> impl Iterator<Item = &rustdoc_types::Item> {
         self.0.index.values()
     }
 
+    /// Items in the crate, excluding external items referenced locally.
+    pub fn items(&self) -> impl Iterator<Item = &rustdoc_types::Item> {
+        self.all_items().filter(|&item| item.crate_id == 0)
+    }
+
+    pub fn item_summary(&self) -> impl Iterator<Item = &rustdoc_types::ItemSummary> {
+        self.0.paths.values()
+    }
+
+    /// Downcast an item to a specific type `T: CrateItem`.
     pub fn downcast<'a, T: CrateItem<'a> + 'a>(
         &'a self,
         item: &'a rustdoc_types::Item,
@@ -609,8 +646,8 @@ impl Crate {
         Some(T::new(self, item, inner))
     }
 
-    pub fn modules(&self) -> impl Iterator<Item = ModuleItem> {
-        self.items().filter_map(|item| match &item.inner {
+    pub fn all_modules(&self) -> impl Iterator<Item = ModuleItem> {
+        self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Module(module) => Some(ModuleItem {
                 krate: self,
                 item,
@@ -620,29 +657,47 @@ impl Crate {
         })
     }
 
-    pub fn functions(&self) -> impl Iterator<Item = FunctionItem> {
-        self.items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Function(func) => Some(FunctionItem { item, func }),
+    pub fn modules(&self) -> impl Iterator<Item = ModuleItem> {
+        self.all_modules().filter(|module| module.is_root_item())
+    }
+
+    /// methods & associated functions included
+    pub fn all_functions(&self) -> impl Iterator<Item = FunctionItem> {
+        self.all_items().filter_map(|item| match &item.inner {
+            rustdoc_types::ItemEnum::Function(func) => Some(FunctionItem { krate: self, item, func }),
             _ => None,
         })
     }
 
-    pub fn constants(&self) -> impl Iterator<Item = ConstantItem> {
-        self.items().filter_map(|item| match &item.inner {
+    /// methods & associated functions not included
+    pub fn functions(&self) -> impl Iterator<Item = FunctionItem> {
+        self.all_functions().filter(|func| func.is_root_item() && !func.is_method() && !func.is_associated())
+    }
+
+    pub fn all_constants(&self) -> impl Iterator<Item = ConstantItem> {
+        self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Constant(constant) => Some(ConstantItem { item, constant }),
             _ => None,
         })
     }
 
-    pub fn statics(&self) -> impl Iterator<Item = StaticItem> {
-        self.items().filter_map(|item| match &item.inner {
+    pub fn constants(&self) -> impl Iterator<Item = ConstantItem> {
+        self.all_constants().filter(|constant| constant.is_root_item())
+    }
+
+    pub fn all_statics(&self) -> impl Iterator<Item = StaticItem> {
+        self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Static(static_) => Some(StaticItem { item, static_ }),
             _ => None,
         })
     }
 
-    pub fn structs(&self) -> impl Iterator<Item = StructItem> {
-        self.items().filter_map(|item| match &item.inner {
+    pub fn statics(&self) -> impl Iterator<Item = StaticItem> {
+        self.all_statics().filter(|static_| static_.is_root_item())
+    }
+
+    pub fn all_structs(&self) -> impl Iterator<Item = StructItem> {
+        self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Struct(struct_) => Some(StructItem {
                 krate: self,
                 item,
@@ -652,8 +707,12 @@ impl Crate {
         })
     }
 
-    pub fn traits(&self) -> impl Iterator<Item = TraitItem> {
-        self.items().filter_map(|item| match &item.inner {
+    pub fn structs(&self) -> impl Iterator<Item = StructItem> {
+        self.all_structs().filter(|struct_| struct_.is_root_item())
+    }
+
+    pub fn all_traits(&self) -> impl Iterator<Item = TraitItem> {
+        self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Trait(trait_) => Some(TraitItem {
                 krate: self,
                 item,
@@ -663,8 +722,12 @@ impl Crate {
         })
     }
 
-    pub fn enums(&self) -> impl Iterator<Item = EnumItem> {
-        self.items().filter_map(|item| match &item.inner {
+    pub fn traits(&self) -> impl Iterator<Item = TraitItem> {
+        self.all_traits().filter(|trait_| trait_.is_root_item())
+    }
+
+    pub fn all_enums(&self) -> impl Iterator<Item = EnumItem> {
+        self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Enum(enum_) => Some(EnumItem {
                 krate: self,
                 item,
@@ -674,8 +737,12 @@ impl Crate {
         })
     }
 
-    pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
-        self.items().filter_map(|item| match &item.inner {
+    pub fn enums(&self) -> impl Iterator<Item = EnumItem> {
+        self.all_enums().filter(|enum_| enum_.is_root_item())
+    }
+
+    pub fn all_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Impl(impl_) => Some(ImplItem {
                 krate: self,
                 item,
@@ -685,11 +752,19 @@ impl Crate {
         })
     }
 
-    pub fn macros(&self) -> impl Iterator<Item = MacroItem> {
-        self.items().filter_map(|item| match &item.inner {
+    pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.all_impls().filter(|imp| imp.is_root_item())
+    }
+
+    pub fn all_macros(&self) -> impl Iterator<Item = MacroItem> {
+        self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Macro(macro_) => Some(MacroItem { item, macro_ }),
             _ => None,
         })
+    }
+
+    pub fn macros(&self) -> impl Iterator<Item = MacroItem> {
+        self.all_macros().filter(|macro_| macro_.is_root_item())
     }
 }
 
@@ -749,6 +824,36 @@ impl CrateBuilder {
 
     pub fn manifest_path(mut self, manifest_path: impl AsRef<Path>) -> Self {
         self.builder = self.builder.manifest_path(manifest_path);
+        self
+    }
+
+    pub fn all_features(mut self, all_features: bool) -> Self {
+        self.builder = self.builder.all_features(all_features);
+        self
+    }
+
+    pub fn package(mut self, package: impl AsRef<str>) -> Self {
+        self.builder = self.builder.package(package);
+        self
+    }
+
+    pub fn features(mut self, features: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        self.builder = self.builder.features(features);
+        self
+    }
+
+    pub fn no_default_features(mut self, no_default_features: bool) -> Self {
+        self.builder = self.builder.no_default_features(no_default_features);
+        self
+    }
+
+    pub fn target(mut self, target: String) -> Self {
+        self.builder = self.builder.target(target);
+        self
+    }
+
+    pub fn target_dir(mut self, target_dir: impl AsRef<Path>) -> Self {
+        self.builder = self.builder.target_dir(target_dir);
         self
     }
 
