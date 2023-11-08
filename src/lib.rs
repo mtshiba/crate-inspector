@@ -15,8 +15,18 @@ pub trait CrateItem<'a> {
     fn is_crate_item(&self) -> bool {
         self.item().crate_id == 0
     }
+    fn is_root_item(&self) -> bool {
+        self.module().is_some_and(|module| module.id() == &self.krate().root)
+    }
     fn is_external_item(&self) -> bool {
         self.item().crate_id != 0
+    }
+    fn id(&'a self) -> &'a Id {
+        &self.item().id
+    }
+    fn module(&self) -> Option<ModuleItem<'a>> {
+        self.krate().all_modules()
+            .find(|module| module.module.items.contains(&self.item().id))
     }
 }
 
@@ -769,10 +779,17 @@ impl Crate {
         })
     }
 
+    /// root module included
     pub fn modules(&self) -> impl Iterator<Item = ModuleItem> {
         self.all_modules().filter(|module| module.is_crate_item())
     }
 
+    /// root module not included
+    pub fn sub_modules(&self) -> impl Iterator<Item = ModuleItem> {
+        self.all_modules().filter(|module| module.item.id != self.root)
+    }
+
+    /// Enumerates all functions including submodules.
     /// methods & associated functions & function declarations included
     pub fn all_functions(&self) -> impl Iterator<Item = FunctionItem> {
         self.all_items().filter_map(|item| match &item.inner {
@@ -781,11 +798,13 @@ impl Crate {
         })
     }
 
+    /// Enumerates root module functions.
     /// methods & associated functions & function declarations not included
     pub fn functions(&self) -> impl Iterator<Item = FunctionItem> {
-        self.all_functions().filter(|func| func.is_crate_item() && !func.is_method() && !func.is_associated() && func.func.has_body)
+        self.all_functions().filter(|func| func.is_root_item() && !func.is_method() && !func.is_associated() && func.func.has_body)
     }
 
+    /// Enumerates all constants including submodules
     pub fn all_constants(&self) -> impl Iterator<Item = ConstantItem> {
         self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Constant(constant) => Some(ConstantItem { krate: self, item, constant }),
@@ -793,10 +812,12 @@ impl Crate {
         })
     }
 
+    /// Enumerates root module constants
     pub fn constants(&self) -> impl Iterator<Item = ConstantItem> {
-        self.all_constants().filter(|constant| constant.is_crate_item())
+        self.all_constants().filter(|constant| constant.is_root_item())
     }
 
+    /// Enumerates all statics including submodules
     pub fn all_statics(&self) -> impl Iterator<Item = StaticItem> {
         self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Static(static_) => Some(StaticItem { krate: self, item, static_ }),
@@ -804,10 +825,12 @@ impl Crate {
         })
     }
 
+    /// Enumerates root module statics
     pub fn statics(&self) -> impl Iterator<Item = StaticItem> {
-        self.all_statics().filter(|static_| static_.is_crate_item())
+        self.all_statics().filter(|static_| static_.is_root_item())
     }
 
+    /// Enumerates all structs including submodules
     pub fn all_structs(&self) -> impl Iterator<Item = StructItem> {
         self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Struct(struct_) => Some(StructItem {
@@ -819,10 +842,12 @@ impl Crate {
         })
     }
 
+    /// Enumerates root module structs
     pub fn structs(&self) -> impl Iterator<Item = StructItem> {
-        self.all_structs().filter(|struct_| struct_.is_crate_item())
+        self.all_structs().filter(|struct_| struct_.is_root_item())
     }
 
+    /// Enumerates all traits including submodules
     pub fn all_traits(&self) -> impl Iterator<Item = TraitItem> {
         self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Trait(trait_) => Some(TraitItem {
@@ -834,10 +859,12 @@ impl Crate {
         })
     }
 
+    /// Enumerates root module traits
     pub fn traits(&self) -> impl Iterator<Item = TraitItem> {
-        self.all_traits().filter(|trait_| trait_.is_crate_item())
+        self.all_traits().filter(|trait_| trait_.is_root_item())
     }
 
+    /// Enumerates all enums including submodules
     pub fn all_enums(&self) -> impl Iterator<Item = EnumItem> {
         self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Enum(enum_) => Some(EnumItem {
@@ -849,10 +876,12 @@ impl Crate {
         })
     }
 
+    /// Enumerates root module enums
     pub fn enums(&self) -> impl Iterator<Item = EnumItem> {
-        self.all_enums().filter(|enum_| enum_.is_crate_item())
+        self.all_enums().filter(|enum_| enum_.is_root_item())
     }
 
+    /// Enumerates all impls including submodules
     pub fn all_impls(&self) -> impl Iterator<Item = ImplItem> {
         self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Impl(impl_) => Some(ImplItem {
@@ -864,10 +893,12 @@ impl Crate {
         })
     }
 
+    /// Enumerates root module impls
     pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
-        self.all_impls().filter(|imp| imp.is_crate_item())
+        self.all_impls().filter(|imp| imp.is_root_item())
     }
 
+    /// Enumerates all macros including submodules
     pub fn all_macros(&self) -> impl Iterator<Item = MacroItem> {
         self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Macro(macro_) => Some(MacroItem { krate: self, item, macro_ }),
@@ -875,8 +906,9 @@ impl Crate {
         })
     }
 
+    /// Enumerates root module macros
     pub fn macros(&self) -> impl Iterator<Item = MacroItem> {
-        self.all_macros().filter(|macro_| macro_.is_crate_item())
+        self.all_macros().filter(|macro_| macro_.is_root_item())
     }
 }
 
