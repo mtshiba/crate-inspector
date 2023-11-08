@@ -21,4 +21,7 @@ fn main() {
     for sub in krate.sub_modules() {
         println!("submodule: {}", sub.name());
     }
+    if let Some(item) = krate.get_item("format") {
+        println!("item: {:?}", item.id);
+    }
 }

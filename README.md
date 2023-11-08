@@ -29,6 +29,9 @@ for enm in krate.enums() {
 for sub in krate.sub_modules() {
     println!("submodule: {}", sub.name());
 }
+if let Some(foo) = krate.get_item("foo") {
+    println!("id: {:?}", foo.id);
+}
 ```
 
 ### Downcasting

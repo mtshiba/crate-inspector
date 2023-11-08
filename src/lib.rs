@@ -64,12 +64,44 @@ macro_rules! impl_items {
                 self.items().filter_map(|item| self.krate().downcast::<TraitItem>(item))
             }
 
+            pub fn modules(&self) -> impl Iterator<Item = ModuleItem> {
+                self.items().filter_map(|item| self.krate().downcast::<ModuleItem>(item))
+            }
+
             pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
                 self.items().filter_map(|item| self.krate().downcast::<ImplItem>(item))
             }
 
             pub fn imports(&self) -> impl Iterator<Item = ImportItem> {
                 self.items().filter_map(|item| self.krate().downcast::<ImportItem>(item))
+            }
+
+            pub fn get_item(&self, name: &str) -> Option<&rustdoc_types::Item> {
+                self.items().find(|item| item.name.as_ref().is_some_and(|n| n == name))
+            }
+
+            pub fn get_constant(&self, name: &str) -> Option<ConstantItem> {
+                self.constants().find(|constant| constant.name() == name)
+            }
+
+            pub fn get_function(&self, name: &str) -> Option<FunctionItem> {
+                self.functions().find(|func| func.name() == name)
+            }
+
+            pub fn get_struct(&self, name: &str) -> Option<StructItem> {
+                self.structs().find(|struct_| struct_.name() == name)
+            }
+
+            pub fn get_enum(&self, name: &str) -> Option<EnumItem> {
+                self.enums().find(|enum_| enum_.name() == name)
+            }
+
+            pub fn get_trait(&self, name: &str) -> Option<TraitItem> {
+                self.traits().find(|trait_| trait_.name() == name)
+            }
+
+            pub fn get_module(&self, name: &str) -> Option<ModuleItem> {
+                self.modules().find(|module| module.name() == name)
             }
         }
     };
@@ -901,6 +933,34 @@ impl Crate {
     /// Enumerates root module imports
     pub fn imports(&self) -> impl Iterator<Item = ImportItem> {
         self.all_imports().filter(|import| import.is_root_item())
+    }
+
+    pub fn get_item(&self, name: &str) -> Option<&rustdoc_types::Item> {
+        self.items().find(|item| item.name.as_ref().is_some_and(|n| n == name))
+    }
+
+    pub fn get_constant(&self, name: &str) -> Option<ConstantItem> {
+        self.constants().find(|constant| constant.name() == name)
+    }
+
+    pub fn get_function(&self, name: &str) -> Option<FunctionItem> {
+        self.functions().find(|func| func.name() == name)
+    }
+
+    pub fn get_struct(&self, name: &str) -> Option<StructItem> {
+        self.structs().find(|struct_| struct_.name() == name)
+    }
+
+    pub fn get_enum(&self, name: &str) -> Option<EnumItem> {
+        self.enums().find(|enum_| enum_.name() == name)
+    }
+
+    pub fn get_trait(&self, name: &str) -> Option<TraitItem> {
+        self.traits().find(|trait_| trait_.name() == name)
+    }
+
+    pub fn get_module(&self, name: &str) -> Option<ModuleItem> {
+        self.modules().find(|module| module.name() == name)
     }
 }
 
