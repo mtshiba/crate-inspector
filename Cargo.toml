@@ -5,6 +5,8 @@ edition = "2021"
 authors = ["Shunsuke Shibayama <sbym1346@gmail.com>"]
 description = "A library to inspect the public APIs of Rust crates"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/mtshiba/crate-inspector"
+documentation = "https://docs.rs/crate-inspector"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
