@@ -12,6 +12,9 @@ pub trait CrateItem<'a> {
     fn krate(&self) -> &'a Crate;
     fn item(&self) -> &'a rustdoc_types::Item;
     fn inner(&self) -> &'a Self::Inner;
+    fn is_public(&self) -> bool {
+        self.item().visibility == rustdoc_types::Visibility::Public
+    }
     fn is_crate_item(&self) -> bool {
         self.item().crate_id == 0
     }
@@ -42,61 +45,31 @@ macro_rules! impl_items {
     ($ty: ident < $l: lifetime >) => {
         impl<$l> $ty<$l> {
             pub fn constants(&self) -> impl Iterator<Item = ConstantItem> {
-                self.items().filter_map(|item| match &item.inner {
-                    rustdoc_types::ItemEnum::Constant(constant) => Some(ConstantItem { krate: self.krate, item, constant }),
-                    _ => None,
-                })
+                self.items().filter_map(|item| self.krate().downcast::<ConstantItem>(item))
             }
 
             pub fn functions(&self) -> impl Iterator<Item = FunctionItem> {
-                self.items().filter_map(|item| match &item.inner {
-                    rustdoc_types::ItemEnum::Function(func) => Some(FunctionItem { krate: self.krate, item, func }),
-                    _ => None,
-                })
+                self.items().filter_map(|item| self.krate().downcast::<FunctionItem>(item))
             }
 
             pub fn structs(&self) -> impl Iterator<Item = StructItem> {
-                self.items().filter_map(|item| match &item.inner {
-                    rustdoc_types::ItemEnum::Struct(struct_) => Some(StructItem {
-                        krate: self.krate,
-                        item,
-                        struct_,
-                    }),
-                    _ => None,
-                })
+                self.items().filter_map(|item| self.krate().downcast::<StructItem>(item))
             }
 
             pub fn enums(&self) -> impl Iterator<Item = EnumItem> {
-                self.items().filter_map(|item| match &item.inner {
-                    rustdoc_types::ItemEnum::Enum(enum_) => Some(EnumItem {
-                        krate: self.krate,
-                        item,
-                        enum_,
-                    }),
-                    _ => None,
-                })
+                self.items().filter_map(|item| self.krate().downcast::<EnumItem>(item))
             }
 
             pub fn traits(&self) -> impl Iterator<Item = TraitItem> {
-                self.items().filter_map(|item| match &item.inner {
-                    rustdoc_types::ItemEnum::Trait(trait_) => Some(TraitItem {
-                        krate: self.krate,
-                        item,
-                        trait_,
-                    }),
-                    _ => None,
-                })
+                self.items().filter_map(|item| self.krate().downcast::<TraitItem>(item))
             }
 
             pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
-                self.items().filter_map(|item| match &item.inner {
-                    rustdoc_types::ItemEnum::Impl(impl_) => Some(ImplItem {
-                        krate: self.krate,
-                        item,
-                        impl_,
-                    }),
-                    _ => None,
-                })
+                self.items().filter_map(|item| self.krate().downcast::<ImplItem>(item))
+            }
+
+            pub fn imports(&self) -> impl Iterator<Item = ImportItem> {
+                self.items().filter_map(|item| self.krate().downcast::<ImportItem>(item))
             }
         }
     };
@@ -719,6 +692,62 @@ impl<'a> MacroItem<'a> {
     }
 }
 
+pub struct ImportItem<'a> {
+    krate: &'a Crate,
+    item: &'a rustdoc_types::Item,
+    import: &'a rustdoc_types::Import,
+}
+
+impl<'a> CrateItem<'a> for ImportItem<'a> {
+    type Inner = rustdoc_types::Import;
+    fn downcast(inner: &rustdoc_types::ItemEnum) -> Option<&Self::Inner> {
+        match inner {
+            rustdoc_types::ItemEnum::Import(import) => Some(import),
+            _ => None,
+        }
+    }
+    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, import: &'a Self::Inner) -> Self {
+        Self { krate, item, import }
+    }
+    fn item(&self) -> &'a rustdoc_types::Item {
+        self.item
+    }
+    fn inner(&self) -> &'a Self::Inner {
+        self.import
+    }
+    fn krate(&self) -> &'a Crate {
+        self.krate
+    }
+}
+
+impl ImportItem<'_> {
+    /// e.g.
+    ///
+    /// `pub use foo::bar;` -> as_name == "bar", source == "foo::bar", glob == false
+    ///
+    /// `pub use foo::*;` -> as_name == "foo", source == "foo", glob == true
+    ///
+    /// `pub use foo::bar as baz;` -> as_name == "baz", source == "foo::bar", glob == false
+    pub fn as_name(&self) -> &str {
+        &self.import.name
+    }
+
+    /// e.g.
+    ///
+    /// `pub use foo::bar;` -> as_name == "bar", source == "foo::bar", glob == false
+    ///
+    /// `pub use foo::*;` -> as_name == "foo", source == "foo", glob == true
+    ///
+    /// `pub use foo::bar as baz;` -> as_name == "baz", source == "foo::bar", glob == false
+    pub fn source(&self) -> &str {
+        &self.import.source
+    }
+
+    pub fn is_glob(&self) -> bool {
+        self.import.glob
+    }
+}
+
 #[derive(Clone, PartialEq, Eq)]
 pub struct Crate(rustdoc_types::Crate);
 
@@ -769,14 +798,7 @@ impl Crate {
     }
 
     pub fn all_modules(&self) -> impl Iterator<Item = ModuleItem> {
-        self.all_items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Module(module) => Some(ModuleItem {
-                krate: self,
-                item,
-                module,
-            }),
-            _ => None,
-        })
+        self.all_items().filter_map(|item| self.krate().downcast::<ModuleItem>(item))
     }
 
     /// root module included
@@ -792,10 +814,7 @@ impl Crate {
     /// Enumerates all functions including submodules.
     /// methods & associated functions & function declarations included
     pub fn all_functions(&self) -> impl Iterator<Item = FunctionItem> {
-        self.all_items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Function(func) => Some(FunctionItem { krate: self, item, func }),
-            _ => None,
-        })
+        self.all_items().filter_map(|item| self.krate().downcast::<FunctionItem>(item))
     }
 
     /// Enumerates root module functions.
@@ -806,10 +825,7 @@ impl Crate {
 
     /// Enumerates all constants including submodules
     pub fn all_constants(&self) -> impl Iterator<Item = ConstantItem> {
-        self.all_items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Constant(constant) => Some(ConstantItem { krate: self, item, constant }),
-            _ => None,
-        })
+        self.all_items().filter_map(|item| self.krate().downcast::<ConstantItem>(item))
     }
 
     /// Enumerates root module constants
@@ -819,10 +835,7 @@ impl Crate {
 
     /// Enumerates all statics including submodules
     pub fn all_statics(&self) -> impl Iterator<Item = StaticItem> {
-        self.all_items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Static(static_) => Some(StaticItem { krate: self, item, static_ }),
-            _ => None,
-        })
+        self.all_items().filter_map(|item| self.krate().downcast::<StaticItem>(item))
     }
 
     /// Enumerates root module statics
@@ -832,14 +845,7 @@ impl Crate {
 
     /// Enumerates all structs including submodules
     pub fn all_structs(&self) -> impl Iterator<Item = StructItem> {
-        self.all_items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Struct(struct_) => Some(StructItem {
-                krate: self,
-                item,
-                struct_,
-            }),
-            _ => None,
-        })
+        self.all_items().filter_map(|item| self.krate().downcast::<StructItem>(item))
     }
 
     /// Enumerates root module structs
@@ -849,14 +855,7 @@ impl Crate {
 
     /// Enumerates all traits including submodules
     pub fn all_traits(&self) -> impl Iterator<Item = TraitItem> {
-        self.all_items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Trait(trait_) => Some(TraitItem {
-                krate: self,
-                item,
-                trait_,
-            }),
-            _ => None,
-        })
+        self.all_items().filter_map(|item| self.krate().downcast::<TraitItem>(item))
     }
 
     /// Enumerates root module traits
@@ -866,14 +865,7 @@ impl Crate {
 
     /// Enumerates all enums including submodules
     pub fn all_enums(&self) -> impl Iterator<Item = EnumItem> {
-        self.all_items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Enum(enum_) => Some(EnumItem {
-                krate: self,
-                item,
-                enum_,
-            }),
-            _ => None,
-        })
+        self.all_items().filter_map(|item| self.krate().downcast::<EnumItem>(item))
     }
 
     /// Enumerates root module enums
@@ -883,14 +875,7 @@ impl Crate {
 
     /// Enumerates all impls including submodules
     pub fn all_impls(&self) -> impl Iterator<Item = ImplItem> {
-        self.all_items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Impl(impl_) => Some(ImplItem {
-                krate: self,
-                item,
-                impl_,
-            }),
-            _ => None,
-        })
+        self.all_items().filter_map(|item| self.krate().downcast::<ImplItem>(item))
     }
 
     /// Enumerates root module impls
@@ -900,15 +885,22 @@ impl Crate {
 
     /// Enumerates all macros including submodules
     pub fn all_macros(&self) -> impl Iterator<Item = MacroItem> {
-        self.all_items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Macro(macro_) => Some(MacroItem { krate: self, item, macro_ }),
-            _ => None,
-        })
+        self.all_items().filter_map(|item| self.krate().downcast::<MacroItem>(item))
     }
 
     /// Enumerates root module macros
     pub fn macros(&self) -> impl Iterator<Item = MacroItem> {
         self.all_macros().filter(|macro_| macro_.is_root_item())
+    }
+
+    /// Enumerates all imports including submodules
+    pub fn all_imports(&self) -> impl Iterator<Item = ImportItem> {
+        self.all_items().filter_map(|item| self.krate().downcast::<ImportItem>(item))
+    }
+
+    /// Enumerates root module imports
+    pub fn imports(&self) -> impl Iterator<Item = ImportItem> {
+        self.all_imports().filter(|import| import.is_root_item())
     }
 }
 
