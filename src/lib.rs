@@ -9,9 +9,10 @@ pub trait CrateItem<'a> {
     type Inner;
     fn downcast(inner: &'a rustdoc_types::ItemEnum) -> Option<&'a Self::Inner>;
     fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, inner: &'a Self::Inner) -> Self;
+    fn krate(&self) -> &'a Crate;
     fn item(&self) -> &'a rustdoc_types::Item;
     fn inner(&self) -> &'a Self::Inner;
-    fn is_root_item(&self) -> bool {
+    fn is_crate_item(&self) -> bool {
         self.item().crate_id == 0
     }
     fn is_external_item(&self) -> bool {
@@ -25,6 +26,70 @@ pub trait HasType {
 
 pub trait HasName {
     fn name(&self) -> &str;
+}
+
+macro_rules! impl_items {
+    ($ty: ident < $l: lifetime >) => {
+        impl<$l> $ty<$l> {
+            pub fn constants(&self) -> impl Iterator<Item = ConstantItem> {
+                self.items().filter_map(|item| match &item.inner {
+                    rustdoc_types::ItemEnum::Constant(constant) => Some(ConstantItem { krate: self.krate, item, constant }),
+                    _ => None,
+                })
+            }
+
+            pub fn functions(&self) -> impl Iterator<Item = FunctionItem> {
+                self.items().filter_map(|item| match &item.inner {
+                    rustdoc_types::ItemEnum::Function(func) => Some(FunctionItem { krate: self.krate, item, func }),
+                    _ => None,
+                })
+            }
+
+            pub fn structs(&self) -> impl Iterator<Item = StructItem> {
+                self.items().filter_map(|item| match &item.inner {
+                    rustdoc_types::ItemEnum::Struct(struct_) => Some(StructItem {
+                        krate: self.krate,
+                        item,
+                        struct_,
+                    }),
+                    _ => None,
+                })
+            }
+
+            pub fn enums(&self) -> impl Iterator<Item = EnumItem> {
+                self.items().filter_map(|item| match &item.inner {
+                    rustdoc_types::ItemEnum::Enum(enum_) => Some(EnumItem {
+                        krate: self.krate,
+                        item,
+                        enum_,
+                    }),
+                    _ => None,
+                })
+            }
+
+            pub fn traits(&self) -> impl Iterator<Item = TraitItem> {
+                self.items().filter_map(|item| match &item.inner {
+                    rustdoc_types::ItemEnum::Trait(trait_) => Some(TraitItem {
+                        krate: self.krate,
+                        item,
+                        trait_,
+                    }),
+                    _ => None,
+                })
+            }
+
+            pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
+                self.items().filter_map(|item| match &item.inner {
+                    rustdoc_types::ItemEnum::Impl(impl_) => Some(ImplItem {
+                        krate: self.krate,
+                        item,
+                        impl_,
+                    }),
+                    _ => None,
+                })
+            }
+        }
+    };
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -55,6 +120,9 @@ impl<'a> CrateItem<'a> for ModuleItem<'a> {
     fn inner(&self) -> &'a Self::Inner {
         self.module
     }
+    fn krate(&self) -> &'a Crate {
+        self.krate
+    }
 }
 
 impl HasName for ModuleItem<'_> {
@@ -76,6 +144,8 @@ impl<'a> ModuleItem<'a> {
         self.item_ids().map(|id| &self.krate.index[id])
     }
 }
+
+impl_items!(ModuleItem <'a>);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FunctionItem<'a> {
@@ -101,6 +171,9 @@ impl<'a> CrateItem<'a> for FunctionItem<'a> {
     fn inner(&self) -> &'a Self::Inner {
         self.func
     }
+    fn krate(&self) -> &'a Crate {
+        self.krate
+    }
 }
 
 impl HasName for FunctionItem<'_> {
@@ -123,6 +196,11 @@ impl<'a> FunctionItem<'a> {
             .any(|imp| imp.item_ids().any(|id| id == &self.item.id))
     }
 
+    pub fn associated_impl(&self) -> Option<ImplItem<'a>> {
+        self.krate.all_impls()
+            .find(|imp| imp.item_ids().any(|id| id == &self.item.id))
+    }
+
     pub fn inputs(&self) -> impl Iterator<Item = &(String, Type)> {
         self.func.decl.inputs.iter()
     }
@@ -138,6 +216,7 @@ impl<'a> FunctionItem<'a> {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ConstantItem<'a> {
+    krate: &'a Crate,
     item: &'a rustdoc_types::Item,
     constant: &'a rustdoc_types::Constant,
 }
@@ -150,14 +229,17 @@ impl<'a> CrateItem<'a> for ConstantItem<'a> {
             _ => None,
         }
     }
-    fn new(_krate: &'_ Crate, item: &'a rustdoc_types::Item, constant: &'a Self::Inner) -> Self {
-        Self { item, constant }
+    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, constant: &'a Self::Inner) -> Self {
+        Self { krate, item, constant }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
     }
     fn inner(&self) -> &'a Self::Inner {
         self.constant
+    }
+    fn krate(&self) -> &'a Crate {
+        self.krate
     }
 }
 
@@ -193,6 +275,7 @@ impl<'a> ConstantItem<'a> {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct StaticItem<'a> {
+    krate: &'a Crate,
     item: &'a rustdoc_types::Item,
     static_: &'a rustdoc_types::Static,
 }
@@ -205,14 +288,17 @@ impl<'a> CrateItem<'a> for StaticItem<'a> {
             _ => None,
         }
     }
-    fn new(_krate: &'_ Crate, item: &'a rustdoc_types::Item, static_: &'a Self::Inner) -> Self {
-        Self { item, static_ }
+    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, static_: &'a Self::Inner) -> Self {
+        Self { krate, item, static_ }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
     }
     fn inner(&self) -> &'a Self::Inner {
         self.static_
+    }
+    fn krate(&self) -> &'a Crate {
+        self.krate
     }
 }
 
@@ -266,6 +352,9 @@ impl<'a> CrateItem<'a> for StructItem<'a> {
     fn inner(&self) -> &'a Self::Inner {
         self.struct_
     }
+    fn krate(&self) -> &'a Crate {
+        self.krate
+    }
 }
 
 impl HasName for StructItem<'_> {
@@ -294,7 +383,7 @@ impl<'a> StructItem<'a> {
                 let rustdoc_types::ItemEnum::StructField(field) = &item.inner else {
                     panic!("expected struct field, got {:?}", item.inner);
                 };
-                FieldItem { item, field }
+                FieldItem { krate: self.krate, item, field }
             })
         })
     }
@@ -311,6 +400,7 @@ impl<'a> StructItem<'a> {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FieldItem<'a> {
+    krate: &'a Crate,
     item: &'a rustdoc_types::Item,
     field: &'a rustdoc_types::Type,
 }
@@ -323,14 +413,17 @@ impl<'a> CrateItem<'a> for FieldItem<'a> {
             _ => None,
         }
     }
-    fn new(_krate: &'_ Crate, item: &'a rustdoc_types::Item, field: &'a Self::Inner) -> Self {
-        Self { item, field }
+    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, field: &'a Self::Inner) -> Self {
+        Self { krate, item, field }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
     }
     fn inner(&self) -> &'a Self::Inner {
         self.field
+    }
+    fn krate(&self) -> &'a Crate {
+        self.krate
     }
 }
 
@@ -384,6 +477,9 @@ impl<'a> CrateItem<'a> for TraitItem<'a> {
     fn inner(&self) -> &'a Self::Inner {
         self.trait_
     }
+    fn krate(&self) -> &'a Crate {
+        self.krate
+    }
 }
 
 impl HasName for TraitItem<'_> {
@@ -430,6 +526,9 @@ impl<'a> CrateItem<'a> for EnumItem<'a> {
     fn inner(&self) -> &'a Self::Inner {
         self.enum_
     }
+    fn krate(&self) -> &'a Crate {
+        self.krate
+    }
 }
 
 impl HasName for EnumItem<'_> {
@@ -453,7 +552,7 @@ impl<'a> EnumItem<'a> {
             let rustdoc_types::ItemEnum::Variant(variant) = &item.inner else {
                 panic!("expected variant, got {:?}", item.inner);
             };
-            VariantItem { item, variant }
+            VariantItem { krate: self.krate, item, variant }
         })
     }
 
@@ -469,6 +568,7 @@ impl<'a> EnumItem<'a> {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct VariantItem<'a> {
+    krate: &'a Crate,
     item: &'a rustdoc_types::Item,
     variant: &'a rustdoc_types::Variant,
 }
@@ -481,14 +581,17 @@ impl<'a> CrateItem<'a> for VariantItem<'a> {
             _ => None,
         }
     }
-    fn new(_krate: &'_ Crate, item: &'a rustdoc_types::Item, variant: &'a Self::Inner) -> Self {
-        Self { item, variant }
+    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, variant: &'a Self::Inner) -> Self {
+        Self { krate, item, variant }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
     }
     fn inner(&self) -> &'a Self::Inner {
         self.variant
+    }
+    fn krate(&self) -> &'a Crate {
+        self.krate
     }
 }
 
@@ -532,6 +635,9 @@ impl<'a> CrateItem<'a> for ImplItem<'a> {
     fn inner(&self) -> &'a Self::Inner {
         self.impl_
     }
+    fn krate(&self) -> &'a Crate {
+        self.krate
+    }
 }
 
 impl<'a> ImplItem<'a> {
@@ -547,20 +653,6 @@ impl<'a> ImplItem<'a> {
         self.item_ids().map(|id| &self.krate.index[id])
     }
 
-    pub fn constants(&self) -> impl Iterator<Item = ConstantItem> {
-        self.items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Constant(constant) => Some(ConstantItem { item, constant }),
-            _ => None,
-        })
-    }
-
-    pub fn functions(&self) -> impl Iterator<Item = FunctionItem> {
-        self.items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Function(func) => Some(FunctionItem { krate: self.krate, item, func }),
-            _ => None,
-        })
-    }
-
     pub fn trait_(&self) -> Option<&rustdoc_types::Path> {
         self.impl_.trait_.as_ref()
     }
@@ -570,8 +662,11 @@ impl<'a> ImplItem<'a> {
     }
 }
 
+impl_items!(ImplItem <'a>);
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MacroItem<'a> {
+    krate: &'a Crate,
     item: &'a rustdoc_types::Item,
     macro_: &'a String,
 }
@@ -584,14 +679,17 @@ impl<'a> CrateItem<'a> for MacroItem<'a> {
             _ => None,
         }
     }
-    fn new(_krate: &'_ Crate, item: &'a rustdoc_types::Item, macro_: &'a Self::Inner) -> Self {
-        Self { item, macro_ }
+    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, macro_: &'a Self::Inner) -> Self {
+        Self { krate, item, macro_ }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
     }
     fn inner(&self) -> &'a Self::Inner {
         self.macro_
+    }
+    fn krate(&self) -> &'a Crate {
+        self.krate
     }
 }
 
@@ -611,8 +709,18 @@ impl<'a> MacroItem<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Crate(rustdoc_types::Crate);
+
+impl std::fmt::Debug for Crate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Crate")
+            .field("root", &self.root)
+            .field("crate_version", &self.crate_version)
+            .field("...", &"...")
+            .finish()
+    }
+}
 
 impl Deref for Crate {
     type Target = rustdoc_types::Crate;
@@ -631,6 +739,10 @@ impl Crate {
     /// Items in the crate, excluding external items referenced locally.
     pub fn items(&self) -> impl Iterator<Item = &rustdoc_types::Item> {
         self.all_items().filter(|&item| item.crate_id == 0)
+    }
+
+    pub fn krate(&self) -> &Crate {
+        self
     }
 
     pub fn item_summary(&self) -> impl Iterator<Item = &rustdoc_types::ItemSummary> {
@@ -658,10 +770,10 @@ impl Crate {
     }
 
     pub fn modules(&self) -> impl Iterator<Item = ModuleItem> {
-        self.all_modules().filter(|module| module.is_root_item())
+        self.all_modules().filter(|module| module.is_crate_item())
     }
 
-    /// methods & associated functions included
+    /// methods & associated functions & function declarations included
     pub fn all_functions(&self) -> impl Iterator<Item = FunctionItem> {
         self.all_items().filter_map(|item| match &item.inner {
             rustdoc_types::ItemEnum::Function(func) => Some(FunctionItem { krate: self, item, func }),
@@ -669,31 +781,31 @@ impl Crate {
         })
     }
 
-    /// methods & associated functions not included
+    /// methods & associated functions & function declarations not included
     pub fn functions(&self) -> impl Iterator<Item = FunctionItem> {
-        self.all_functions().filter(|func| func.is_root_item() && !func.is_method() && !func.is_associated())
+        self.all_functions().filter(|func| func.is_crate_item() && !func.is_method() && !func.is_associated() && func.func.has_body)
     }
 
     pub fn all_constants(&self) -> impl Iterator<Item = ConstantItem> {
         self.all_items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Constant(constant) => Some(ConstantItem { item, constant }),
+            rustdoc_types::ItemEnum::Constant(constant) => Some(ConstantItem { krate: self, item, constant }),
             _ => None,
         })
     }
 
     pub fn constants(&self) -> impl Iterator<Item = ConstantItem> {
-        self.all_constants().filter(|constant| constant.is_root_item())
+        self.all_constants().filter(|constant| constant.is_crate_item())
     }
 
     pub fn all_statics(&self) -> impl Iterator<Item = StaticItem> {
         self.all_items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Static(static_) => Some(StaticItem { item, static_ }),
+            rustdoc_types::ItemEnum::Static(static_) => Some(StaticItem { krate: self, item, static_ }),
             _ => None,
         })
     }
 
     pub fn statics(&self) -> impl Iterator<Item = StaticItem> {
-        self.all_statics().filter(|static_| static_.is_root_item())
+        self.all_statics().filter(|static_| static_.is_crate_item())
     }
 
     pub fn all_structs(&self) -> impl Iterator<Item = StructItem> {
@@ -708,7 +820,7 @@ impl Crate {
     }
 
     pub fn structs(&self) -> impl Iterator<Item = StructItem> {
-        self.all_structs().filter(|struct_| struct_.is_root_item())
+        self.all_structs().filter(|struct_| struct_.is_crate_item())
     }
 
     pub fn all_traits(&self) -> impl Iterator<Item = TraitItem> {
@@ -723,7 +835,7 @@ impl Crate {
     }
 
     pub fn traits(&self) -> impl Iterator<Item = TraitItem> {
-        self.all_traits().filter(|trait_| trait_.is_root_item())
+        self.all_traits().filter(|trait_| trait_.is_crate_item())
     }
 
     pub fn all_enums(&self) -> impl Iterator<Item = EnumItem> {
@@ -738,7 +850,7 @@ impl Crate {
     }
 
     pub fn enums(&self) -> impl Iterator<Item = EnumItem> {
-        self.all_enums().filter(|enum_| enum_.is_root_item())
+        self.all_enums().filter(|enum_| enum_.is_crate_item())
     }
 
     pub fn all_impls(&self) -> impl Iterator<Item = ImplItem> {
@@ -753,18 +865,18 @@ impl Crate {
     }
 
     pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
-        self.all_impls().filter(|imp| imp.is_root_item())
+        self.all_impls().filter(|imp| imp.is_crate_item())
     }
 
     pub fn all_macros(&self) -> impl Iterator<Item = MacroItem> {
         self.all_items().filter_map(|item| match &item.inner {
-            rustdoc_types::ItemEnum::Macro(macro_) => Some(MacroItem { item, macro_ }),
+            rustdoc_types::ItemEnum::Macro(macro_) => Some(MacroItem { krate: self, item, macro_ }),
             _ => None,
         })
     }
 
     pub fn macros(&self) -> impl Iterator<Item = MacroItem> {
-        self.all_macros().filter(|macro_| macro_.is_root_item())
+        self.all_macros().filter(|macro_| macro_.is_crate_item())
     }
 }
 

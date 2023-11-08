@@ -39,6 +39,14 @@ impl TypeFormatter {
         }
     }
 
+    pub fn generic_enclosure(&self) -> (&str, &str) {
+        if self.kind.is_rust() {
+            ("<", ">")
+        } else {
+            ("(", ")")
+        }
+    }
+
     pub fn fn_decl_to_string(&self, decl: &FnDecl) -> String {
         let mut s = String::new();
         s.push('(');
@@ -65,7 +73,7 @@ impl TypeFormatter {
         match args {
             GenericArgs::AngleBracketed { args, .. } => {
                 if !args.is_empty() {
-                    s.push('<');
+                    s.push_str(self.generic_enclosure().0);
                 }
                 for (i, arg) in args.iter().enumerate() {
                     if i > 0 {
@@ -74,7 +82,7 @@ impl TypeFormatter {
                     s.push_str(&self.generic_arg_to_string(arg));
                 }
                 if !args.is_empty() {
-                    s.push('>');
+                    s.push_str(self.generic_enclosure().1);
                 }
             }
             GenericArgs::Parenthesized { inputs, output } => {
@@ -120,10 +128,7 @@ impl TypeFormatter {
                 if !generic_params.is_empty() {
                     s.push_str("> ");
                 }
-                s.push_str(&trait_.name);
-                if let Some(args) = trait_.args.as_deref() {
-                    s.push_str(&self.generic_args_to_string(args));
-                }
+                s.push_str(&self.path_to_string(trait_));
                 s
             }
             other => todo!("{:?}", other),
@@ -161,6 +166,14 @@ impl TypeFormatter {
 
     pub fn type_to_string(&self, ty: &Type) -> String {
         match ty {
+            Type::Primitive(primitive) if self.kind.is_erg() => match &primitive[..] {
+                "bool" => "Bool".to_string(),
+                "u8" | "u16" | "u32" | "u64" | "u128" => "Nat".to_string(),
+                "i8" | "i16" | "i32" | "i64" | "i128" => "Int".to_string(),
+                "f32" | "f64" => "Float".to_string(),
+                "char" | "str" | "String" => "Str".to_string(),
+                other => other.to_string(),
+            },
             Type::Primitive(primitive) => primitive.to_string(),
             Type::ResolvedPath(path) => self.path_to_string(path),
             Type::FunctionPointer(func) => {
@@ -237,14 +250,27 @@ impl TypeFormatter {
             }
             Type::QualifiedPath { name, args, self_type, trait_ } => {
                 let mut s = String::new();
-                s.push('<');
+                if !self.kind.is_erg() {
+                    s.push('<');
+                }
                 s.push_str(&self.type_to_string(self_type));
                 if let Some(trait_) = trait_ {
-                    s.push_str(" as ");
+                    if self.kind.is_erg() {
+                        s.push_str("|<: ");
+                    } else {
+                        s.push_str(" as ");
+                    }
                     s.push_str(&self.path_to_string(trait_));
+                    if self.kind.is_erg() {
+                        s.push('|');
+                    }
                 }
-                s.push('>');
-                s.push_str("::");
+                if self.kind.is_erg() {
+                    s.push('.');
+                } else {
+                    s.push('>');
+                    s.push_str("::");
+                }
                 s.push_str(name);
                 s.push_str(&self.generic_args_to_string(args));
                 s
@@ -273,9 +299,13 @@ impl TypeFormatter {
         }
     }
 
-    fn path_to_string(&self, path: &Path) -> String {
+    pub fn path_to_string(&self, path: &Path) -> String {
         let mut s = String::new();
-        s.push_str(&path.name);
+        if self.kind.is_erg() {
+            s.push_str(&path.name.replace("::", "."));
+        } else {
+            s.push_str(&path.name);
+        }
         if let Some(args) = path.args.as_deref() {
             s.push_str(&self.generic_args_to_string(args));
         }
