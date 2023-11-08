@@ -21,7 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
-      - run: rustup update stable
+      - run: |
+          rustup update stable
+          rustup install nightly
       - run: cargo test --all --verbose -- --include-ignored --nocapture
 
   build-check:
