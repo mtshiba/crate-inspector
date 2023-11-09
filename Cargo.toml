@@ -1,6 +1,6 @@
 [package]
 name = "crate-inspector"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 authors = ["Shunsuke Shibayama <sbym1346@gmail.com>"]
 description = "A library to inspect the public APIs of Rust crates"
