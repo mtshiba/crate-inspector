@@ -16,7 +16,10 @@ fn main() {
     for enm in krate.enums() {
         println!("enum: {}", enm.name());
         println!("variants: {:?}", enm.variants().collect::<Vec<_>>());
-        println!("#methods: {}", enm.impls().fold(0, |acc, i| acc + i.functions().count()));
+        println!(
+            "#methods: {}",
+            enm.impls().fold(0, |acc, i| acc + i.functions().count())
+        );
     }
     for sub in krate.sub_modules() {
         println!("submodule: {}", sub.name());

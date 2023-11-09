@@ -19,7 +19,8 @@ pub trait CrateItem<'a> {
         self.item().crate_id == 0
     }
     fn is_root_item(&self) -> bool {
-        self.module().is_some_and(|module| module.id() == &self.krate().root)
+        self.module()
+            .is_some_and(|module| module.id() == &self.krate().root)
     }
     fn is_external_item(&self) -> bool {
         self.item().crate_id != 0
@@ -28,7 +29,8 @@ pub trait CrateItem<'a> {
         &self.item().id
     }
     fn module(&self) -> Option<ModuleItem<'a>> {
-        self.krate().all_modules()
+        self.krate()
+            .all_modules()
             .find(|module| module.module.items.contains(&self.item().id))
     }
 }
@@ -45,55 +47,68 @@ macro_rules! impl_items {
     ($ty: ident < $l: lifetime >) => {
         impl<$l> $ty<$l> {
             pub fn constants(&self) -> impl Iterator<Item = ConstantItem> {
-                self.items().filter_map(|item| self.krate().downcast::<ConstantItem>(item))
+                self.items()
+                    .filter_map(|item| self.krate().downcast::<ConstantItem>(item))
             }
 
             pub fn functions(&self) -> impl Iterator<Item = FunctionItem> {
-                self.items().filter_map(|item| self.krate().downcast::<FunctionItem>(item))
+                self.items()
+                    .filter_map(|item| self.krate().downcast::<FunctionItem>(item))
             }
 
             pub fn structs(&self) -> impl Iterator<Item = StructItem> {
-                self.items().filter_map(|item| self.krate().downcast::<StructItem>(item))
+                self.items()
+                    .filter_map(|item| self.krate().downcast::<StructItem>(item))
             }
 
             pub fn enums(&self) -> impl Iterator<Item = EnumItem> {
-                self.items().filter_map(|item| self.krate().downcast::<EnumItem>(item))
+                self.items()
+                    .filter_map(|item| self.krate().downcast::<EnumItem>(item))
             }
 
             pub fn traits(&self) -> impl Iterator<Item = TraitItem> {
-                self.items().filter_map(|item| self.krate().downcast::<TraitItem>(item))
+                self.items()
+                    .filter_map(|item| self.krate().downcast::<TraitItem>(item))
             }
 
             pub fn type_aliases(&self) -> impl Iterator<Item = TypeAliasItem> {
-                self.items().filter_map(|item| self.krate().downcast::<TypeAliasItem>(item))
+                self.items()
+                    .filter_map(|item| self.krate().downcast::<TypeAliasItem>(item))
             }
 
             pub fn trait_aliases(&self) -> impl Iterator<Item = TraitAliasItem> {
-                self.items().filter_map(|item| self.krate().downcast::<TraitAliasItem>(item))
+                self.items()
+                    .filter_map(|item| self.krate().downcast::<TraitAliasItem>(item))
             }
 
             pub fn opaque_tys(&self) -> impl Iterator<Item = OpaqueTyItem> {
-                self.items().filter_map(|item| self.krate().downcast::<OpaqueTyItem>(item))
+                self.items()
+                    .filter_map(|item| self.krate().downcast::<OpaqueTyItem>(item))
             }
 
             pub fn unions(&self) -> impl Iterator<Item = UnionItem> {
-                self.items().filter_map(|item| self.krate().downcast::<UnionItem>(item))
+                self.items()
+                    .filter_map(|item| self.krate().downcast::<UnionItem>(item))
             }
 
             pub fn modules(&self) -> impl Iterator<Item = ModuleItem> {
-                self.items().filter_map(|item| self.krate().downcast::<ModuleItem>(item))
+                self.items()
+                    .filter_map(|item| self.krate().downcast::<ModuleItem>(item))
             }
 
             pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
-                self.items().filter_map(|item| self.krate().downcast::<ImplItem>(item))
+                self.items()
+                    .filter_map(|item| self.krate().downcast::<ImplItem>(item))
             }
 
             pub fn imports(&self) -> impl Iterator<Item = ImportItem> {
-                self.items().filter_map(|item| self.krate().downcast::<ImportItem>(item))
+                self.items()
+                    .filter_map(|item| self.krate().downcast::<ImportItem>(item))
             }
 
             pub fn get_item(&self, name: &str) -> Option<&rustdoc_types::Item> {
-                self.items().find(|item| item.name.as_ref().is_some_and(|n| n == name))
+                self.items()
+                    .find(|item| item.name.as_ref().is_some_and(|n| n == name))
             }
 
             pub fn get_constant(&self, name: &str) -> Option<ConstantItem> {
@@ -117,11 +132,13 @@ macro_rules! impl_items {
             }
 
             pub fn get_type_alias(&self, name: &str) -> Option<TypeAliasItem> {
-                self.type_aliases().find(|type_alias| type_alias.name() == name)
+                self.type_aliases()
+                    .find(|type_alias| type_alias.name() == name)
             }
 
             pub fn get_trait_alias(&self, name: &str) -> Option<TraitAliasItem> {
-                self.trait_aliases().find(|trait_alias| trait_alias.name() == name)
+                self.trait_aliases()
+                    .find(|trait_alias| trait_alias.name() == name)
             }
 
             pub fn get_opaque_ty(&self, name: &str) -> Option<OpaqueTyItem> {
@@ -192,12 +209,13 @@ impl<'a> ModuleItem<'a> {
     }
 
     pub fn parent(&self) -> Option<ModuleItem<'a>> {
-        self.krate.all_modules()
+        self.krate
+            .all_modules()
             .find(|module| module.module.items.contains(&self.item.id))
     }
 }
 
-impl_items!(ModuleItem <'a>);
+impl_items!(ModuleItem<'a>);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct FunctionItem<'a> {
@@ -240,16 +258,22 @@ impl<'a> FunctionItem<'a> {
     }
 
     pub fn is_method(&self) -> bool {
-        self.func.decl.inputs.first().is_some_and(|(name, _)| name == "self")
+        self.func
+            .decl
+            .inputs
+            .first()
+            .is_some_and(|(name, _)| name == "self")
     }
 
     pub fn is_associated(&self) -> bool {
-        self.krate.all_impls()
+        self.krate
+            .all_impls()
             .any(|imp| imp.item_ids().any(|id| id == &self.item.id))
     }
 
     pub fn associated_impl(&self) -> Option<ImplItem<'a>> {
-        self.krate.all_impls()
+        self.krate
+            .all_impls()
             .find(|imp| imp.item_ids().any(|id| id == &self.item.id))
     }
 
@@ -286,7 +310,11 @@ impl<'a> CrateItem<'a> for ConstantItem<'a> {
         }
     }
     fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, constant: &'a Self::Inner) -> Self {
-        Self { krate, item, constant }
+        Self {
+            krate,
+            item,
+            constant,
+        }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
@@ -345,7 +373,11 @@ impl<'a> CrateItem<'a> for StaticItem<'a> {
         }
     }
     fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, static_: &'a Self::Inner) -> Self {
-        Self { krate, item, static_ }
+        Self {
+            krate,
+            item,
+            static_,
+        }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
@@ -439,7 +471,11 @@ impl<'a> StructItem<'a> {
                 let rustdoc_types::ItemEnum::StructField(field) = &item.inner else {
                     panic!("expected struct field, got {:?}", item.inner);
                 };
-                FieldItem { krate: self.krate, item, field }
+                FieldItem {
+                    krate: self.krate,
+                    item,
+                    field,
+                }
             })
         })
     }
@@ -608,7 +644,11 @@ impl<'a> EnumItem<'a> {
             let rustdoc_types::ItemEnum::Variant(variant) = &item.inner else {
                 panic!("expected variant, got {:?}", item.inner);
             };
-            VariantItem { krate: self.krate, item, variant }
+            VariantItem {
+                krate: self.krate,
+                item,
+                variant,
+            }
         })
     }
 
@@ -638,7 +678,11 @@ impl<'a> CrateItem<'a> for VariantItem<'a> {
         }
     }
     fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, variant: &'a Self::Inner) -> Self {
-        Self { krate, item, variant }
+        Self {
+            krate,
+            item,
+            variant,
+        }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
@@ -717,7 +761,11 @@ impl<'a> UnionItem<'a> {
             let rustdoc_types::ItemEnum::StructField(field) = &item.inner else {
                 panic!("expected struct field, got {:?}", item.inner);
             };
-            FieldItem { krate: self.krate, item, field }
+            FieldItem {
+                krate: self.krate,
+                item,
+                field,
+            }
         })
     }
 }
@@ -738,7 +786,11 @@ impl<'a> CrateItem<'a> for TypeAliasItem<'a> {
         }
     }
     fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, type_alias: &'a Self::Inner) -> Self {
-        Self { krate, item, type_alias }
+        Self {
+            krate,
+            item,
+            type_alias,
+        }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
@@ -783,7 +835,11 @@ impl<'a> CrateItem<'a> for TraitAliasItem<'a> {
         }
     }
     fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, trait_alias: &'a Self::Inner) -> Self {
-        Self { krate, item, trait_alias }
+        Self {
+            krate,
+            item,
+            trait_alias,
+        }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
@@ -832,7 +888,11 @@ impl<'a> CrateItem<'a> for OpaqueTyItem<'a> {
         }
     }
     fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, opaque_ty: &'a Self::Inner) -> Self {
-        Self { krate, item, opaque_ty }
+        Self {
+            krate,
+            item,
+            opaque_ty,
+        }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
@@ -912,7 +972,7 @@ impl<'a> ImplItem<'a> {
     }
 }
 
-impl_items!(ImplItem <'a>);
+impl_items!(ImplItem<'a>);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct MacroItem<'a> {
@@ -930,7 +990,11 @@ impl<'a> CrateItem<'a> for MacroItem<'a> {
         }
     }
     fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, macro_: &'a Self::Inner) -> Self {
-        Self { krate, item, macro_ }
+        Self {
+            krate,
+            item,
+            macro_,
+        }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
@@ -974,7 +1038,11 @@ impl<'a> CrateItem<'a> for ImportItem<'a> {
         }
     }
     fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, import: &'a Self::Inner) -> Self {
-        Self { krate, item, import }
+        Self {
+            krate,
+            item,
+            import,
+        }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
@@ -1065,7 +1133,8 @@ impl Crate {
     }
 
     pub fn all_modules(&self) -> impl Iterator<Item = ModuleItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<ModuleItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<ModuleItem>(item))
     }
 
     /// root module included
@@ -1077,34 +1146,44 @@ impl Crate {
     ///
     /// submodules of submodules not included
     pub fn sub_modules(&self) -> impl Iterator<Item = ModuleItem> {
-        self.all_modules().filter(|module| module.parent().is_some_and(|parent| parent.id() == &self.root))
+        self.all_modules().filter(|module| {
+            module
+                .parent()
+                .is_some_and(|parent| parent.id() == &self.root)
+        })
     }
 
     /// Enumerates all functions including submodules.
     /// methods & associated functions & function declarations included
     pub fn all_functions(&self) -> impl Iterator<Item = FunctionItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<FunctionItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<FunctionItem>(item))
     }
 
     /// Enumerates root module functions.
     /// methods & associated functions & function declarations not included
     pub fn functions(&self) -> impl Iterator<Item = FunctionItem> {
-        self.all_functions().filter(|func| func.is_root_item() && !func.is_method() && !func.is_associated() && func.func.has_body)
+        self.all_functions().filter(|func| {
+            func.is_root_item() && !func.is_method() && !func.is_associated() && func.func.has_body
+        })
     }
 
     /// Enumerates all constants including submodules
     pub fn all_constants(&self) -> impl Iterator<Item = ConstantItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<ConstantItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<ConstantItem>(item))
     }
 
     /// Enumerates root module constants
     pub fn constants(&self) -> impl Iterator<Item = ConstantItem> {
-        self.all_constants().filter(|constant| constant.is_root_item())
+        self.all_constants()
+            .filter(|constant| constant.is_root_item())
     }
 
     /// Enumerates all statics including submodules
     pub fn all_statics(&self) -> impl Iterator<Item = StaticItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<StaticItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<StaticItem>(item))
     }
 
     /// Enumerates root module statics
@@ -1114,7 +1193,8 @@ impl Crate {
 
     /// Enumerates all structs including submodules
     pub fn all_structs(&self) -> impl Iterator<Item = StructItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<StructItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<StructItem>(item))
     }
 
     /// Enumerates root module structs
@@ -1124,7 +1204,8 @@ impl Crate {
 
     /// Enumerates all traits including submodules
     pub fn all_traits(&self) -> impl Iterator<Item = TraitItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<TraitItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<TraitItem>(item))
     }
 
     /// Enumerates root module traits
@@ -1134,7 +1215,8 @@ impl Crate {
 
     /// Enumerates all enums including submodules
     pub fn all_enums(&self) -> impl Iterator<Item = EnumItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<EnumItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<EnumItem>(item))
     }
 
     /// Enumerates root module enums
@@ -1143,31 +1225,38 @@ impl Crate {
     }
 
     pub fn all_type_aliases(&self) -> impl Iterator<Item = TypeAliasItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<TypeAliasItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<TypeAliasItem>(item))
     }
 
     pub fn type_aliases(&self) -> impl Iterator<Item = TypeAliasItem> {
-        self.all_type_aliases().filter(|type_alias| type_alias.is_root_item())
+        self.all_type_aliases()
+            .filter(|type_alias| type_alias.is_root_item())
     }
 
     pub fn all_trait_aliases(&self) -> impl Iterator<Item = TraitAliasItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<TraitAliasItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<TraitAliasItem>(item))
     }
 
     pub fn trait_aliases(&self) -> impl Iterator<Item = TraitAliasItem> {
-        self.all_trait_aliases().filter(|trait_alias| trait_alias.is_root_item())
+        self.all_trait_aliases()
+            .filter(|trait_alias| trait_alias.is_root_item())
     }
 
     pub fn all_opaque_tys(&self) -> impl Iterator<Item = OpaqueTyItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<OpaqueTyItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<OpaqueTyItem>(item))
     }
 
     pub fn opaque_tys(&self) -> impl Iterator<Item = OpaqueTyItem> {
-        self.all_opaque_tys().filter(|opaque_ty| opaque_ty.is_root_item())
+        self.all_opaque_tys()
+            .filter(|opaque_ty| opaque_ty.is_root_item())
     }
 
     pub fn all_unions(&self) -> impl Iterator<Item = UnionItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<UnionItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<UnionItem>(item))
     }
 
     pub fn unions(&self) -> impl Iterator<Item = UnionItem> {
@@ -1176,7 +1265,8 @@ impl Crate {
 
     /// Enumerates all impls including submodules
     pub fn all_impls(&self) -> impl Iterator<Item = ImplItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<ImplItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<ImplItem>(item))
     }
 
     /// Enumerates root module impls
@@ -1186,7 +1276,8 @@ impl Crate {
 
     /// Enumerates all macros including submodules
     pub fn all_macros(&self) -> impl Iterator<Item = MacroItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<MacroItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<MacroItem>(item))
     }
 
     /// Enumerates root module macros
@@ -1196,7 +1287,8 @@ impl Crate {
 
     /// Enumerates all imports including submodules
     pub fn all_imports(&self) -> impl Iterator<Item = ImportItem> {
-        self.all_items().filter_map(|item| self.krate().downcast::<ImportItem>(item))
+        self.all_items()
+            .filter_map(|item| self.krate().downcast::<ImportItem>(item))
     }
 
     /// Enumerates root module imports
@@ -1205,7 +1297,8 @@ impl Crate {
     }
 
     pub fn get_item(&self, name: &str) -> Option<&rustdoc_types::Item> {
-        self.items().find(|item| item.name.as_ref().is_some_and(|n| n == name))
+        self.items()
+            .find(|item| item.name.as_ref().is_some_and(|n| n == name))
     }
 
     pub fn get_constant(&self, name: &str) -> Option<ConstantItem> {
@@ -1229,11 +1322,13 @@ impl Crate {
     }
 
     pub fn get_type_alias(&self, name: &str) -> Option<TypeAliasItem> {
-        self.type_aliases().find(|type_alias| type_alias.name() == name)
+        self.type_aliases()
+            .find(|type_alias| type_alias.name() == name)
     }
 
     pub fn get_trait_alias(&self, name: &str) -> Option<TraitAliasItem> {
-        self.trait_aliases().find(|trait_alias| trait_alias.name() == name)
+        self.trait_aliases()
+            .find(|trait_alias| trait_alias.name() == name)
     }
 
     pub fn get_opaque_ty(&self, name: &str) -> Option<OpaqueTyItem> {

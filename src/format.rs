@@ -1,4 +1,7 @@
-use rustdoc_types::{Type, GenericArg, GenericArgs, FnDecl, GenericBound, Path, PolyTrait, GenericParamDef, GenericParamDefKind};
+use rustdoc_types::{
+    FnDecl, GenericArg, GenericArgs, GenericBound, GenericParamDef, GenericParamDefKind, Path,
+    PolyTrait, Type,
+};
 
 pub fn fn_decl_to_string(decl: &FnDecl) -> String {
     let mut s = String::new();
@@ -65,7 +68,11 @@ pub fn generic_arg_to_string(arg: &GenericArg) -> String {
 
 pub fn bound_to_string(bound: &GenericBound) -> String {
     match bound {
-        GenericBound::TraitBound { trait_, generic_params, .. } => {
+        GenericBound::TraitBound {
+            trait_,
+            generic_params,
+            ..
+        } => {
             let mut s = String::new();
             if !generic_params.is_empty() {
                 s.push_str("for<");
@@ -110,7 +117,9 @@ pub fn generic_param_def_to_string(param: &GenericParamDef) -> String {
                 }
             }
         }
-        GenericParamDefKind::Type { bounds, default, .. } => {
+        GenericParamDefKind::Type {
+            bounds, default, ..
+        } => {
             if !bounds.is_empty() {
                 s.push_str(": ");
                 for (i, bound) in bounds.iter().enumerate() {
@@ -166,7 +175,11 @@ pub fn type_to_string(ty: &Type) -> String {
             }
             s
         }
-        Type::BorrowedRef { lifetime, mutable, type_ } => {
+        Type::BorrowedRef {
+            lifetime,
+            mutable,
+            type_,
+        } => {
             let mut s = String::new();
             s.push('&');
             if *mutable {
@@ -187,7 +200,12 @@ pub fn type_to_string(ty: &Type) -> String {
         Type::Array { type_, len } => {
             format!("[{}; {}]", type_to_string(type_), len)
         }
-        Type::QualifiedPath { name, args, self_type, trait_ } => {
+        Type::QualifiedPath {
+            name,
+            args,
+            self_type,
+            trait_,
+        } => {
             let mut s = String::new();
             s.push('<');
             s.push_str(&type_to_string(self_type));
