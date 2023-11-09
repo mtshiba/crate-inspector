@@ -64,6 +64,22 @@ macro_rules! impl_items {
                 self.items().filter_map(|item| self.krate().downcast::<TraitItem>(item))
             }
 
+            pub fn type_aliases(&self) -> impl Iterator<Item = TypeAliasItem> {
+                self.items().filter_map(|item| self.krate().downcast::<TypeAliasItem>(item))
+            }
+
+            pub fn trait_aliases(&self) -> impl Iterator<Item = TraitAliasItem> {
+                self.items().filter_map(|item| self.krate().downcast::<TraitAliasItem>(item))
+            }
+
+            pub fn opaque_tys(&self) -> impl Iterator<Item = OpaqueTyItem> {
+                self.items().filter_map(|item| self.krate().downcast::<OpaqueTyItem>(item))
+            }
+
+            pub fn unions(&self) -> impl Iterator<Item = UnionItem> {
+                self.items().filter_map(|item| self.krate().downcast::<UnionItem>(item))
+            }
+
             pub fn modules(&self) -> impl Iterator<Item = ModuleItem> {
                 self.items().filter_map(|item| self.krate().downcast::<ModuleItem>(item))
             }
@@ -98,6 +114,22 @@ macro_rules! impl_items {
 
             pub fn get_trait(&self, name: &str) -> Option<TraitItem> {
                 self.traits().find(|trait_| trait_.name() == name)
+            }
+
+            pub fn get_type_alias(&self, name: &str) -> Option<TypeAliasItem> {
+                self.type_aliases().find(|type_alias| type_alias.name() == name)
+            }
+
+            pub fn get_trait_alias(&self, name: &str) -> Option<TraitAliasItem> {
+                self.trait_aliases().find(|trait_alias| trait_alias.name() == name)
+            }
+
+            pub fn get_opaque_ty(&self, name: &str) -> Option<OpaqueTyItem> {
+                self.opaque_tys().find(|opaque_ty| opaque_ty.name() == name)
+            }
+
+            pub fn get_union(&self, name: &str) -> Option<UnionItem> {
+                self.unions().find(|union| union.name() == name)
             }
 
             pub fn get_module(&self, name: &str) -> Option<ModuleItem> {
@@ -636,6 +668,200 @@ impl<'a> VariantItem<'a> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct UnionItem<'a> {
+    krate: &'a Crate,
+    item: &'a rustdoc_types::Item,
+    union: &'a rustdoc_types::Union,
+}
+
+impl<'a> CrateItem<'a> for UnionItem<'a> {
+    type Inner = rustdoc_types::Union;
+    fn downcast(inner: &rustdoc_types::ItemEnum) -> Option<&Self::Inner> {
+        match inner {
+            rustdoc_types::ItemEnum::Union(union) => Some(union),
+            _ => None,
+        }
+    }
+    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, union: &'a Self::Inner) -> Self {
+        Self { krate, item, union }
+    }
+    fn item(&self) -> &'a rustdoc_types::Item {
+        self.item
+    }
+    fn inner(&self) -> &'a Self::Inner {
+        self.union
+    }
+    fn krate(&self) -> &'a Crate {
+        self.krate
+    }
+}
+
+impl HasName for UnionItem<'_> {
+    fn name(&self) -> &str {
+        self.item.name.as_ref().unwrap()
+    }
+}
+
+impl<'a> UnionItem<'a> {
+    pub fn name(&self) -> &str {
+        self.item.name.as_ref().unwrap()
+    }
+
+    pub fn field_ids(&self) -> impl Iterator<Item = &Id> {
+        self.union.fields.iter()
+    }
+
+    pub fn fields(&self) -> impl Iterator<Item = FieldItem> {
+        self.field_ids().map(|id| {
+            let item = &self.krate.index[id];
+            let rustdoc_types::ItemEnum::StructField(field) = &item.inner else {
+                panic!("expected struct field, got {:?}", item.inner);
+            };
+            FieldItem { krate: self.krate, item, field }
+        })
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct TypeAliasItem<'a> {
+    krate: &'a Crate,
+    item: &'a rustdoc_types::Item,
+    type_alias: &'a rustdoc_types::TypeAlias,
+}
+
+impl<'a> CrateItem<'a> for TypeAliasItem<'a> {
+    type Inner = rustdoc_types::TypeAlias;
+    fn downcast(inner: &rustdoc_types::ItemEnum) -> Option<&Self::Inner> {
+        match inner {
+            rustdoc_types::ItemEnum::TypeAlias(type_alias) => Some(type_alias),
+            _ => None,
+        }
+    }
+    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, type_alias: &'a Self::Inner) -> Self {
+        Self { krate, item, type_alias }
+    }
+    fn item(&self) -> &'a rustdoc_types::Item {
+        self.item
+    }
+    fn inner(&self) -> &'a Self::Inner {
+        self.type_alias
+    }
+    fn krate(&self) -> &'a Crate {
+        self.krate
+    }
+}
+
+impl HasName for TypeAliasItem<'_> {
+    fn name(&self) -> &str {
+        self.item.name.as_ref().unwrap()
+    }
+}
+
+impl<'a> TypeAliasItem<'a> {
+    pub fn name(&self) -> &str {
+        self.item.name.as_ref().unwrap()
+    }
+
+    pub fn type_(&self) -> &Type {
+        &self.type_alias.type_
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct TraitAliasItem<'a> {
+    krate: &'a Crate,
+    item: &'a rustdoc_types::Item,
+    trait_alias: &'a rustdoc_types::TraitAlias,
+}
+
+impl<'a> CrateItem<'a> for TraitAliasItem<'a> {
+    type Inner = rustdoc_types::TraitAlias;
+    fn downcast(inner: &rustdoc_types::ItemEnum) -> Option<&Self::Inner> {
+        match inner {
+            rustdoc_types::ItemEnum::TraitAlias(trait_alias) => Some(trait_alias),
+            _ => None,
+        }
+    }
+    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, trait_alias: &'a Self::Inner) -> Self {
+        Self { krate, item, trait_alias }
+    }
+    fn item(&self) -> &'a rustdoc_types::Item {
+        self.item
+    }
+    fn inner(&self) -> &'a Self::Inner {
+        self.trait_alias
+    }
+    fn krate(&self) -> &'a Crate {
+        self.krate
+    }
+}
+
+impl HasName for TraitAliasItem<'_> {
+    fn name(&self) -> &str {
+        self.item.name.as_ref().unwrap()
+    }
+}
+
+impl<'a> TraitAliasItem<'a> {
+    pub fn name(&self) -> &str {
+        self.item.name.as_ref().unwrap()
+    }
+
+    pub fn generics(&self) -> &rustdoc_types::Generics {
+        &self.trait_alias.generics
+    }
+
+    pub fn params(&self) -> &[rustdoc_types::GenericBound] {
+        &self.trait_alias.params
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct OpaqueTyItem<'a> {
+    krate: &'a Crate,
+    item: &'a rustdoc_types::Item,
+    opaque_ty: &'a rustdoc_types::OpaqueTy,
+}
+
+impl<'a> CrateItem<'a> for OpaqueTyItem<'a> {
+    type Inner = rustdoc_types::OpaqueTy;
+    fn downcast(inner: &rustdoc_types::ItemEnum) -> Option<&Self::Inner> {
+        match inner {
+            rustdoc_types::ItemEnum::OpaqueTy(opaque_ty) => Some(opaque_ty),
+            _ => None,
+        }
+    }
+    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, opaque_ty: &'a Self::Inner) -> Self {
+        Self { krate, item, opaque_ty }
+    }
+    fn item(&self) -> &'a rustdoc_types::Item {
+        self.item
+    }
+    fn inner(&self) -> &'a Self::Inner {
+        self.opaque_ty
+    }
+    fn krate(&self) -> &'a Crate {
+        self.krate
+    }
+}
+
+impl HasName for OpaqueTyItem<'_> {
+    fn name(&self) -> &str {
+        self.item.name.as_ref().unwrap()
+    }
+}
+
+impl<'a> OpaqueTyItem<'a> {
+    pub fn name(&self) -> &str {
+        self.item.name.as_ref().unwrap()
+    }
+
+    pub fn bounds(&self) -> &[rustdoc_types::GenericBound] {
+        &self.opaque_ty.bounds
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ImplItem<'a> {
     krate: &'a Crate,
     item: &'a rustdoc_types::Item,
@@ -916,6 +1142,38 @@ impl Crate {
         self.all_enums().filter(|enum_| enum_.is_root_item())
     }
 
+    pub fn all_type_aliases(&self) -> impl Iterator<Item = TypeAliasItem> {
+        self.all_items().filter_map(|item| self.krate().downcast::<TypeAliasItem>(item))
+    }
+
+    pub fn type_aliases(&self) -> impl Iterator<Item = TypeAliasItem> {
+        self.all_type_aliases().filter(|type_alias| type_alias.is_root_item())
+    }
+
+    pub fn all_trait_aliases(&self) -> impl Iterator<Item = TraitAliasItem> {
+        self.all_items().filter_map(|item| self.krate().downcast::<TraitAliasItem>(item))
+    }
+
+    pub fn trait_aliases(&self) -> impl Iterator<Item = TraitAliasItem> {
+        self.all_trait_aliases().filter(|trait_alias| trait_alias.is_root_item())
+    }
+
+    pub fn all_opaque_tys(&self) -> impl Iterator<Item = OpaqueTyItem> {
+        self.all_items().filter_map(|item| self.krate().downcast::<OpaqueTyItem>(item))
+    }
+
+    pub fn opaque_tys(&self) -> impl Iterator<Item = OpaqueTyItem> {
+        self.all_opaque_tys().filter(|opaque_ty| opaque_ty.is_root_item())
+    }
+
+    pub fn all_unions(&self) -> impl Iterator<Item = UnionItem> {
+        self.all_items().filter_map(|item| self.krate().downcast::<UnionItem>(item))
+    }
+
+    pub fn unions(&self) -> impl Iterator<Item = UnionItem> {
+        self.all_unions().filter(|union| union.is_root_item())
+    }
+
     /// Enumerates all impls including submodules
     pub fn all_impls(&self) -> impl Iterator<Item = ImplItem> {
         self.all_items().filter_map(|item| self.krate().downcast::<ImplItem>(item))
@@ -968,6 +1226,22 @@ impl Crate {
 
     pub fn get_trait(&self, name: &str) -> Option<TraitItem> {
         self.traits().find(|trait_| trait_.name() == name)
+    }
+
+    pub fn get_type_alias(&self, name: &str) -> Option<TypeAliasItem> {
+        self.type_aliases().find(|type_alias| type_alias.name() == name)
+    }
+
+    pub fn get_trait_alias(&self, name: &str) -> Option<TraitAliasItem> {
+        self.trait_aliases().find(|trait_alias| trait_alias.name() == name)
+    }
+
+    pub fn get_opaque_ty(&self, name: &str) -> Option<OpaqueTyItem> {
+        self.opaque_tys().find(|opaque_ty| opaque_ty.name() == name)
+    }
+
+    pub fn get_union(&self, name: &str) -> Option<UnionItem> {
+        self.unions().find(|union| union.name() == name)
     }
 
     pub fn get_module(&self, name: &str) -> Option<ModuleItem> {
