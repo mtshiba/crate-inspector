@@ -158,6 +158,11 @@ impl<'a> ModuleItem<'a> {
     pub fn items(&self) -> impl Iterator<Item = &rustdoc_types::Item> {
         self.item_ids().map(|id| &self.krate.index[id])
     }
+
+    pub fn parent(&self) -> Option<ModuleItem<'a>> {
+        self.krate.all_modules()
+            .find(|module| module.module.items.contains(&self.item.id))
+    }
 }
 
 impl_items!(ModuleItem <'a>);
@@ -226,6 +231,10 @@ impl<'a> FunctionItem<'a> {
 
     pub fn decl(&self) -> &rustdoc_types::FnDecl {
         &self.func.decl
+    }
+
+    pub fn generics(&self) -> &rustdoc_types::Generics {
+        &self.func.generics
     }
 }
 
@@ -839,8 +848,10 @@ impl Crate {
     }
 
     /// root module not included
+    ///
+    /// submodules of submodules not included
     pub fn sub_modules(&self) -> impl Iterator<Item = ModuleItem> {
-        self.all_modules().filter(|module| module.item.id != self.root)
+        self.all_modules().filter(|module| module.parent().is_some_and(|parent| parent.id() == &self.root))
     }
 
     /// Enumerates all functions including submodules.
