@@ -106,49 +106,60 @@ macro_rules! impl_items {
                     .filter_map(|item| self.krate().downcast::<ImportItem>(item))
             }
 
+            /// Get an item by its name.
             pub fn get_item(&self, name: &str) -> Option<&rustdoc_types::Item> {
                 self.items()
                     .find(|item| item.name.as_ref().is_some_and(|n| n == name))
             }
 
+            /// Get a constant by its name.
             pub fn get_constant(&self, name: &str) -> Option<ConstantItem> {
                 self.constants().find(|constant| constant.name() == name)
             }
 
+            /// Get a function by its name.
             pub fn get_function(&self, name: &str) -> Option<FunctionItem> {
                 self.functions().find(|func| func.name() == name)
             }
 
+            /// Get a struct by its name.
             pub fn get_struct(&self, name: &str) -> Option<StructItem> {
                 self.structs().find(|struct_| struct_.name() == name)
             }
 
+            /// Get an enum by its name.
             pub fn get_enum(&self, name: &str) -> Option<EnumItem> {
                 self.enums().find(|enum_| enum_.name() == name)
             }
 
+            /// Get a trait by its name.
             pub fn get_trait(&self, name: &str) -> Option<TraitItem> {
                 self.traits().find(|trait_| trait_.name() == name)
             }
 
+            /// Get a type alias by its name.
             pub fn get_type_alias(&self, name: &str) -> Option<TypeAliasItem> {
                 self.type_aliases()
                     .find(|type_alias| type_alias.name() == name)
             }
 
+            /// Get a trait alias by its name.
             pub fn get_trait_alias(&self, name: &str) -> Option<TraitAliasItem> {
                 self.trait_aliases()
                     .find(|trait_alias| trait_alias.name() == name)
             }
 
+            /// Get an opaque type by its name.
             pub fn get_opaque_ty(&self, name: &str) -> Option<OpaqueTyItem> {
                 self.opaque_tys().find(|opaque_ty| opaque_ty.name() == name)
             }
 
+            /// Get a union by its name.
             pub fn get_union(&self, name: &str) -> Option<UnionItem> {
                 self.unions().find(|union| union.name() == name)
             }
 
+            /// Get a module by its name.
             pub fn get_module(&self, name: &str) -> Option<ModuleItem> {
                 self.modules().find(|module| module.name() == name)
             }
@@ -488,6 +499,29 @@ impl<'a> StructItem<'a> {
             path.id == self.item.id
         })
     }
+
+    /// Iterate over struct impls that are trait impls (`impl <Trait> for <Struct> { ... }`).
+    /// These may include auto/blanket impls.
+    pub fn trait_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.impls().filter(|imp| imp.trait_().is_some())
+    }
+
+    /// Iterate over struct blanket impls (`impl<T: ...> <Trait> for <Struct<T>> { ... }`).
+    pub fn blanket_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.trait_impls()
+            .filter(|imp| imp.impl_.blanket_impl.is_some())
+    }
+
+    /// Iterate over struct non-blanket impls (`impl <Trait> for <Struct> { ... }`).
+    pub fn non_blanket_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.trait_impls()
+            .filter(|imp| imp.impl_.blanket_impl.is_none())
+    }
+
+    /// Iterator over struct impls that are not trait impls.
+    pub fn associated_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.impls().filter(|imp| imp.trait_().is_none())
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -660,6 +694,25 @@ impl<'a> EnumItem<'a> {
             path.id == self.item.id
         })
     }
+
+    pub fn trait_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.impls().filter(|imp| imp.trait_().is_some())
+    }
+
+    pub fn blanket_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.trait_impls()
+            .filter(|imp| imp.impl_.blanket_impl.is_some())
+    }
+
+    pub fn non_blanket_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.trait_impls()
+            .filter(|imp| imp.impl_.blanket_impl.is_none())
+    }
+
+    /// Iterator over struct impls that are not trait impls.
+    pub fn associated_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.impls().filter(|imp| imp.trait_().is_none())
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -767,6 +820,34 @@ impl<'a> UnionItem<'a> {
                 field,
             }
         })
+    }
+
+    pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.krate.all_impls().filter(|imp| {
+            let Type::ResolvedPath(path) = imp.for_() else {
+                return false;
+            };
+            path.id == self.item.id
+        })
+    }
+
+    pub fn trait_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.impls().filter(|imp| imp.trait_().is_some())
+    }
+
+    pub fn blanket_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.trait_impls()
+            .filter(|imp| imp.impl_.blanket_impl.is_some())
+    }
+
+    pub fn non_blanket_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.trait_impls()
+            .filter(|imp| imp.impl_.blanket_impl.is_none())
+    }
+
+    /// Iterator over struct impls that are not trait impls.
+    pub fn associated_impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.impls().filter(|imp| imp.trait_().is_none())
     }
 }
 
@@ -1263,7 +1344,7 @@ impl Crate {
         self.all_unions().filter(|union| union.is_root_item())
     }
 
-    /// Enumerates all impls including submodules
+    /// Enumerates all referenced impls including submodules, std
     pub fn all_impls(&self) -> impl Iterator<Item = ImplItem> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<ImplItem>(item))
@@ -1296,49 +1377,60 @@ impl Crate {
         self.all_imports().filter(|import| import.is_root_item())
     }
 
+    /// Get an item by its name.
     pub fn get_item(&self, name: &str) -> Option<&rustdoc_types::Item> {
         self.items()
             .find(|item| item.name.as_ref().is_some_and(|n| n == name))
     }
 
+    /// Get a constant by its name.
     pub fn get_constant(&self, name: &str) -> Option<ConstantItem> {
         self.constants().find(|constant| constant.name() == name)
     }
 
+    /// Get a function by its name.
     pub fn get_function(&self, name: &str) -> Option<FunctionItem> {
         self.functions().find(|func| func.name() == name)
     }
 
+    /// Get a struct by its name.
     pub fn get_struct(&self, name: &str) -> Option<StructItem> {
         self.structs().find(|struct_| struct_.name() == name)
     }
 
+    /// Get an enum by its name.
     pub fn get_enum(&self, name: &str) -> Option<EnumItem> {
         self.enums().find(|enum_| enum_.name() == name)
     }
 
+    /// Get a trait by its name.
     pub fn get_trait(&self, name: &str) -> Option<TraitItem> {
         self.traits().find(|trait_| trait_.name() == name)
     }
 
+    /// Get a type alias by its name.
     pub fn get_type_alias(&self, name: &str) -> Option<TypeAliasItem> {
         self.type_aliases()
             .find(|type_alias| type_alias.name() == name)
     }
 
+    /// Get a trait alias by its name.
     pub fn get_trait_alias(&self, name: &str) -> Option<TraitAliasItem> {
         self.trait_aliases()
             .find(|trait_alias| trait_alias.name() == name)
     }
 
+    /// Get an opaque type by its name.
     pub fn get_opaque_ty(&self, name: &str) -> Option<OpaqueTyItem> {
         self.opaque_tys().find(|opaque_ty| opaque_ty.name() == name)
     }
 
+    /// Get a union by its name.
     pub fn get_union(&self, name: &str) -> Option<UnionItem> {
         self.unions().find(|union| union.name() == name)
     }
 
+    /// Get a module by its name.
     pub fn get_module(&self, name: &str) -> Option<ModuleItem> {
         self.modules().find(|module| module.name() == name)
     }
