@@ -8,7 +8,7 @@ fn test() {
     let krate = builder.build().unwrap();
 
     assert_eq!(krate.sub_modules().count(), 1);
-    assert_eq!(krate.structs().count(), 18);
+    assert_eq!(krate.structs().count(), 17);
     assert_eq!(krate.enums().count(), 1);
     assert_eq!(krate.functions().count(), 0);
     assert_eq!(krate.traits().count(), 3);

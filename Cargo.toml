@@ -11,8 +11,8 @@ documentation = "https://docs.rs/crate-inspector"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rustdoc-json = "0.8"
-rustdoc-types = "0.23"
+rustdoc-json = "0.9"
+rustdoc-types = "0.32"
 serde_json = "1.0"
 
 [lib]

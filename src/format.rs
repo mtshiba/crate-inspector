@@ -1,9 +1,9 @@
 use rustdoc_types::{
-    FnDecl, GenericArg, GenericArgs, GenericBound, GenericParamDef, GenericParamDefKind, Path,
-    PolyTrait, Type,
+    FunctionSignature, GenericArg, GenericArgs, GenericBound, GenericParamDef, GenericParamDefKind,
+    Path, PolyTrait, Type,
 };
 
-pub fn fn_decl_to_string(decl: &FnDecl) -> String {
+pub fn fn_sig_to_string(decl: &FunctionSignature) -> String {
     let mut s = String::new();
     s.push('(');
     for (i, (name, input)) in decl.inputs.iter().enumerate() {
@@ -146,7 +146,7 @@ pub fn type_to_string(ty: &Type) -> String {
         Type::FunctionPointer(func) => {
             let mut s = String::new();
             s.push_str("fn");
-            s.push_str(&fn_decl_to_string(&func.decl));
+            s.push_str(&fn_sig_to_string(&func.sig));
             s
         }
         Type::DynTrait(trait_) => {
@@ -177,12 +177,12 @@ pub fn type_to_string(ty: &Type) -> String {
         }
         Type::BorrowedRef {
             lifetime,
-            mutable,
+            is_mutable,
             type_,
         } => {
             let mut s = String::new();
             s.push('&');
-            if *mutable {
+            if *is_mutable {
                 s.push_str("mut ");
             }
             if let Some(lifetime) = lifetime {
@@ -219,10 +219,10 @@ pub fn type_to_string(ty: &Type) -> String {
             s.push_str(&generic_args_to_string(args));
             s
         }
-        Type::RawPointer { mutable, type_ } => {
+        Type::RawPointer { is_mutable, type_ } => {
             let mut s = String::new();
             s.push('*');
-            if *mutable {
+            if *is_mutable {
                 s.push_str("mut ");
             }
             s.push_str(&type_to_string(type_));
@@ -240,6 +240,10 @@ pub fn type_to_string(ty: &Type) -> String {
             s.push(')');
             s
         }
+        Type::Pat {
+            type_,
+            __pat_unstable_do_not_use,
+        } => type_to_string(type_),
     }
 }
 

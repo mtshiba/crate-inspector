@@ -81,11 +81,6 @@ macro_rules! impl_items {
                     .filter_map(|item| self.krate().downcast::<TraitAliasItem>(item))
             }
 
-            pub fn opaque_tys(&self) -> impl Iterator<Item = OpaqueTyItem> {
-                self.items()
-                    .filter_map(|item| self.krate().downcast::<OpaqueTyItem>(item))
-            }
-
             pub fn unions(&self) -> impl Iterator<Item = UnionItem> {
                 self.items()
                     .filter_map(|item| self.krate().downcast::<UnionItem>(item))
@@ -101,9 +96,9 @@ macro_rules! impl_items {
                     .filter_map(|item| self.krate().downcast::<ImplItem>(item))
             }
 
-            pub fn imports(&self) -> impl Iterator<Item = ImportItem> {
+            pub fn uses(&self) -> impl Iterator<Item = UseItem> {
                 self.items()
-                    .filter_map(|item| self.krate().downcast::<ImportItem>(item))
+                    .filter_map(|item| self.krate().downcast::<UseItem>(item))
             }
 
             /// Get an item by its name.
@@ -147,11 +142,6 @@ macro_rules! impl_items {
             pub fn get_trait_alias(&self, name: &str) -> Option<TraitAliasItem> {
                 self.trait_aliases()
                     .find(|trait_alias| trait_alias.name() == name)
-            }
-
-            /// Get an opaque type by its name.
-            pub fn get_opaque_ty(&self, name: &str) -> Option<OpaqueTyItem> {
-                self.opaque_tys().find(|opaque_ty| opaque_ty.name() == name)
             }
 
             /// Get a union by its name.
@@ -270,7 +260,7 @@ impl<'a> FunctionItem<'a> {
 
     pub fn is_method(&self) -> bool {
         self.func
-            .decl
+            .sig
             .inputs
             .first()
             .is_some_and(|(name, _)| name == "self")
@@ -289,15 +279,15 @@ impl<'a> FunctionItem<'a> {
     }
 
     pub fn inputs(&self) -> impl Iterator<Item = &(String, Type)> {
-        self.func.decl.inputs.iter()
+        self.func.sig.inputs.iter()
     }
 
     pub fn output(&self) -> Option<&Type> {
-        self.func.decl.output.as_ref()
+        self.func.sig.output.as_ref()
     }
 
-    pub fn decl(&self) -> &rustdoc_types::FnDecl {
-        &self.func.decl
+    pub fn sig(&self) -> &rustdoc_types::FunctionSignature {
+        &self.func.sig
     }
 
     pub fn generics(&self) -> &rustdoc_types::Generics {
@@ -309,29 +299,33 @@ impl<'a> FunctionItem<'a> {
 pub struct ConstantItem<'a> {
     krate: &'a Crate,
     item: &'a rustdoc_types::Item,
-    constant: &'a rustdoc_types::Constant,
+    constant_item: &'a rustdoc_types::ItemEnum,
 }
 
 impl<'a> CrateItem<'a> for ConstantItem<'a> {
-    type Inner = rustdoc_types::Constant;
+    type Inner = rustdoc_types::ItemEnum;
     fn downcast(inner: &'a rustdoc_types::ItemEnum) -> Option<&'a Self::Inner> {
         match inner {
-            rustdoc_types::ItemEnum::Constant(constant) => Some(constant),
+            rustdoc_types::ItemEnum::Constant { .. } => Some(inner),
             _ => None,
         }
     }
-    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, constant: &'a Self::Inner) -> Self {
+    fn new(
+        krate: &'a Crate,
+        item: &'a rustdoc_types::Item,
+        constant_item: &'a Self::Inner,
+    ) -> Self {
         Self {
             krate,
             item,
-            constant,
+            constant_item,
         }
     }
     fn item(&self) -> &'a rustdoc_types::Item {
         self.item
     }
     fn inner(&self) -> &'a Self::Inner {
-        self.constant
+        self.constant_item
     }
     fn krate(&self) -> &'a Crate {
         self.krate
@@ -346,7 +340,10 @@ impl HasName for ConstantItem<'_> {
 
 impl HasType for ConstantItem<'_> {
     fn type_(&self) -> &Type {
-        &self.constant.type_
+        let rustdoc_types::ItemEnum::Constant { type_, .. } = &self.constant_item else {
+            unreachable!();
+        };
+        type_
     }
 }
 
@@ -356,15 +353,24 @@ impl<'a> ConstantItem<'a> {
     }
 
     pub fn type_(&self) -> &Type {
-        &self.constant.type_
+        let rustdoc_types::ItemEnum::Constant { type_, .. } = &self.constant_item else {
+            unreachable!();
+        };
+        type_
     }
 
     pub fn expr(&self) -> &str {
-        &self.constant.expr
+        let rustdoc_types::ItemEnum::Constant { const_, .. } = &self.constant_item else {
+            unreachable!();
+        };
+        &const_.expr
     }
 
     pub fn value(&self) -> Option<&str> {
-        self.constant.value.as_deref()
+        let rustdoc_types::ItemEnum::Constant { const_, .. } = &self.constant_item else {
+            unreachable!();
+        };
+        const_.value.as_deref()
     }
 }
 
@@ -954,55 +960,6 @@ impl<'a> TraitAliasItem<'a> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct OpaqueTyItem<'a> {
-    krate: &'a Crate,
-    item: &'a rustdoc_types::Item,
-    opaque_ty: &'a rustdoc_types::OpaqueTy,
-}
-
-impl<'a> CrateItem<'a> for OpaqueTyItem<'a> {
-    type Inner = rustdoc_types::OpaqueTy;
-    fn downcast(inner: &rustdoc_types::ItemEnum) -> Option<&Self::Inner> {
-        match inner {
-            rustdoc_types::ItemEnum::OpaqueTy(opaque_ty) => Some(opaque_ty),
-            _ => None,
-        }
-    }
-    fn new(krate: &'a Crate, item: &'a rustdoc_types::Item, opaque_ty: &'a Self::Inner) -> Self {
-        Self {
-            krate,
-            item,
-            opaque_ty,
-        }
-    }
-    fn item(&self) -> &'a rustdoc_types::Item {
-        self.item
-    }
-    fn inner(&self) -> &'a Self::Inner {
-        self.opaque_ty
-    }
-    fn krate(&self) -> &'a Crate {
-        self.krate
-    }
-}
-
-impl HasName for OpaqueTyItem<'_> {
-    fn name(&self) -> &str {
-        self.item.name.as_ref().unwrap()
-    }
-}
-
-impl<'a> OpaqueTyItem<'a> {
-    pub fn name(&self) -> &str {
-        self.item.name.as_ref().unwrap()
-    }
-
-    pub fn bounds(&self) -> &[rustdoc_types::GenericBound] {
-        &self.opaque_ty.bounds
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ImplItem<'a> {
     krate: &'a Crate,
     item: &'a rustdoc_types::Item,
@@ -1104,17 +1061,17 @@ impl<'a> MacroItem<'a> {
     }
 }
 
-pub struct ImportItem<'a> {
+pub struct UseItem<'a> {
     krate: &'a Crate,
     item: &'a rustdoc_types::Item,
-    import: &'a rustdoc_types::Import,
+    import: &'a rustdoc_types::Use,
 }
 
-impl<'a> CrateItem<'a> for ImportItem<'a> {
-    type Inner = rustdoc_types::Import;
+impl<'a> CrateItem<'a> for UseItem<'a> {
+    type Inner = rustdoc_types::Use;
     fn downcast(inner: &rustdoc_types::ItemEnum) -> Option<&Self::Inner> {
         match inner {
-            rustdoc_types::ItemEnum::Import(import) => Some(import),
+            rustdoc_types::ItemEnum::Use(import) => Some(import),
             _ => None,
         }
     }
@@ -1136,31 +1093,31 @@ impl<'a> CrateItem<'a> for ImportItem<'a> {
     }
 }
 
-impl ImportItem<'_> {
+impl UseItem<'_> {
     /// e.g.
     ///
-    /// `pub use foo::bar;` -> as_name == "bar", source == "foo::bar", glob == false
+    /// `pub use foo::bar;` -> as_name == "bar", source == "foo::bar", is_glob == false
     ///
-    /// `pub use foo::*;` -> as_name == "foo", source == "foo", glob == true
+    /// `pub use foo::*;` -> as_name == "foo", source == "foo", is_glob == true
     ///
-    /// `pub use foo::bar as baz;` -> as_name == "baz", source == "foo::bar", glob == false
+    /// `pub use foo::bar as baz;` -> as_name == "baz", source == "foo::bar", is_glob == false
     pub fn as_name(&self) -> &str {
         &self.import.name
     }
 
     /// e.g.
     ///
-    /// `pub use foo::bar;` -> as_name == "bar", source == "foo::bar", glob == false
+    /// `pub use foo::bar;` -> as_name == "bar", source == "foo::bar", is_glob == false
     ///
-    /// `pub use foo::*;` -> as_name == "foo", source == "foo", glob == true
+    /// `pub use foo::*;` -> as_name == "foo", source == "foo", is_glob == true
     ///
-    /// `pub use foo::bar as baz;` -> as_name == "baz", source == "foo::bar", glob == false
+    /// `pub use foo::bar as baz;` -> as_name == "baz", source == "foo::bar", is_glob == false
     pub fn source(&self) -> &str {
         &self.import.source
     }
 
     pub fn is_glob(&self) -> bool {
-        self.import.glob
+        self.import.is_glob
     }
 }
 
@@ -1325,16 +1282,6 @@ impl Crate {
             .filter(|trait_alias| trait_alias.is_root_item())
     }
 
-    pub fn all_opaque_tys(&self) -> impl Iterator<Item = OpaqueTyItem> {
-        self.all_items()
-            .filter_map(|item| self.krate().downcast::<OpaqueTyItem>(item))
-    }
-
-    pub fn opaque_tys(&self) -> impl Iterator<Item = OpaqueTyItem> {
-        self.all_opaque_tys()
-            .filter(|opaque_ty| opaque_ty.is_root_item())
-    }
-
     pub fn all_unions(&self) -> impl Iterator<Item = UnionItem> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<UnionItem>(item))
@@ -1366,15 +1313,15 @@ impl Crate {
         self.all_macros().filter(|macro_| macro_.is_root_item())
     }
 
-    /// Enumerates all imports including submodules
-    pub fn all_imports(&self) -> impl Iterator<Item = ImportItem> {
+    /// Enumerates all uses including submodules
+    pub fn all_uses(&self) -> impl Iterator<Item = UseItem> {
         self.all_items()
-            .filter_map(|item| self.krate().downcast::<ImportItem>(item))
+            .filter_map(|item| self.krate().downcast::<UseItem>(item))
     }
 
-    /// Enumerates root module imports
-    pub fn imports(&self) -> impl Iterator<Item = ImportItem> {
-        self.all_imports().filter(|import| import.is_root_item())
+    /// Enumerates root module uses
+    pub fn uses(&self) -> impl Iterator<Item = UseItem> {
+        self.all_uses().filter(|import| import.is_root_item())
     }
 
     /// Get an item by its name.
@@ -1418,11 +1365,6 @@ impl Crate {
     pub fn get_trait_alias(&self, name: &str) -> Option<TraitAliasItem> {
         self.trait_aliases()
             .find(|trait_alias| trait_alias.name() == name)
-    }
-
-    /// Get an opaque type by its name.
-    pub fn get_opaque_ty(&self, name: &str) -> Option<OpaqueTyItem> {
-        self.opaque_tys().find(|opaque_ty| opaque_ty.name() == name)
     }
 
     /// Get a union by its name.
