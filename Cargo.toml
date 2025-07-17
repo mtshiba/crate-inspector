@@ -12,7 +12,7 @@ documentation = "https://docs.rs/crate-inspector"
 
 [dependencies]
 rustdoc-json = "0.9"
-rustdoc-types = "0.32"
+rustdoc-types = "0.53"
 serde_json = "1.0"
 
 [lib]
