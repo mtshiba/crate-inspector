@@ -53,6 +53,9 @@ pub fn generic_args_to_string(args: &GenericArgs) -> String {
                 s.push_str(&type_to_string(output));
             }
         }
+        GenericArgs::ReturnTypeNotation => {
+            s.push_str("(..)")
+        }
     }
     s
 }
@@ -216,7 +219,9 @@ pub fn type_to_string(ty: &Type) -> String {
             s.push('>');
             s.push_str("::");
             s.push_str(name);
-            s.push_str(&generic_args_to_string(args));
+            if let Some(args) = args {
+                s.push_str(&generic_args_to_string(args));
+            }
             s
         }
         Type::RawPointer { is_mutable, type_ } => {
@@ -249,7 +254,7 @@ pub fn type_to_string(ty: &Type) -> String {
 
 pub fn path_to_string(path: &Path) -> String {
     let mut s = String::new();
-    s.push_str(&path.name);
+    s.push_str(&path.path);
     if let Some(args) = path.args.as_deref() {
         s.push_str(&generic_args_to_string(args));
     }
