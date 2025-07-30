@@ -1,8 +1,10 @@
 pub mod format;
 
+use std::io::Write;
 use std::ops::Deref;
 use std::path::Path;
 
+use rustdoc_json::Color;
 use rustdoc_types::{Id, Type};
 
 pub trait CrateItem<'a> {
@@ -1472,8 +1474,52 @@ impl CrateBuilder {
         self
     }
 
+    pub fn quiet(mut self, quiet: bool) -> Self {
+        self.builder = self.builder.quiet(quiet);
+        self
+    }
+
+    pub fn silent(mut self, silent: bool) -> Self {
+        self.builder = self.builder.silent(silent);
+        self
+    }
+
+    pub fn color(mut self, color: Color) -> Self {
+        self.builder = self.builder.color(color);
+        self
+    }
+
+    pub fn color_always(mut self, color_always: bool) -> Self {
+        if color_always {
+            self.builder = self.builder.color(Color::Always);
+        }
+        self
+    }
+
+    pub fn color_never(mut self, color_never: bool) -> Self {
+        if color_never {
+            self.builder = self.builder.color(Color::Never);
+        }
+        self
+    }
+
+    pub fn cap_lints(mut self, cap_lints: Option<impl AsRef<str>>) -> Self {
+        self.builder = self.builder.cap_lints(cap_lints);
+        self
+    }
+
     pub fn build(self) -> Result<Crate, BuildCrateError> {
         let path = self.builder.build()?;
+        let krate = serde_json::from_reader(std::fs::File::open(path)?).map(Crate)?;
+        Ok(krate)
+    }
+
+    pub fn build_with_captured_output(
+        self,
+        stdout: impl Write,
+        stderr: impl Write,
+    ) -> Result<Crate, BuildCrateError> {
+        let path = self.builder.build_with_captured_output(stdout, stderr)?;
         let krate = serde_json::from_reader(std::fs::File::open(path)?).map(Crate)?;
         Ok(krate)
     }
