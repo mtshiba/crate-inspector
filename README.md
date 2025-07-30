@@ -58,9 +58,10 @@ This crate depends on [rustdoc's public API](https://github.com/rust-lang/rustdo
 Here is a table mapping crate-inspector versions to corresponding rustdoc versions:
 
 | crate-inspector | rustdoc-types |
-|------------------|---------|
-| 0.1.0~0.1.3      | 0.23    |
-| 0.1.4~0.2.0      | 0.32    |
+|-----------------|---------|
+| 0.1             | 0.23    |
+| 0.2             | 0.32    |
+| 0.3             | 0.54    |
 
 ## License
 
