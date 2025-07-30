@@ -51,6 +51,17 @@ for item in krate.items() {
 }
 ```
 
+## Compatibility
+
+This crate depends on [rustdoc's public API](https://github.com/rust-lang/rustdoc-types).
+
+Here is a table mapping crate-inspector versions to corresponding rustdoc versions:
+
+| crate-inspector | rustdoc-types |
+|------------------|---------|
+| 0.1.0~0.1.3      | 0.23    |
+| 0.1.4~0.2.0      | 0.32    |
+
 ## License
 
 This project is licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT) at your option.
