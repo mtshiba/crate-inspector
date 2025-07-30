@@ -1467,6 +1467,11 @@ impl CrateBuilder {
         self
     }
 
+    pub fn document_private_items(mut self, document_private_items: bool) -> Self {
+        self.builder = self.builder.document_private_items(document_private_items);
+        self
+    }
+
     pub fn build(self) -> Result<Crate, BuildCrateError> {
         let path = self.builder.build()?;
         let krate = serde_json::from_reader(std::fs::File::open(path)?).map(Crate)?;
