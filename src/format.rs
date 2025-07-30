@@ -53,9 +53,7 @@ pub fn generic_args_to_string(args: &GenericArgs) -> String {
                 s.push_str(&type_to_string(output));
             }
         }
-        GenericArgs::ReturnTypeNotation => {
-            s.push_str("(..)")
-        }
+        GenericArgs::ReturnTypeNotation => s.push_str("(..)"),
     }
     s
 }
