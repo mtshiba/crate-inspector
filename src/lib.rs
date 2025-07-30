@@ -216,6 +216,14 @@ impl<'a> ModuleItem<'a> {
             .all_modules()
             .find(|module| module.module.items.contains(&self.item.id))
     }
+
+    pub fn is_crate(&self) -> bool {
+        self.module.is_crate
+    }
+
+    pub fn is_stripped(&self) -> bool {
+        self.module.is_stripped
+    }
 }
 
 impl_items!(ModuleItem<'a>);
@@ -294,6 +302,14 @@ impl<'a> FunctionItem<'a> {
 
     pub fn generics(&self) -> &rustdoc_types::Generics {
         &self.func.generics
+    }
+
+    pub fn header(&self) -> &rustdoc_types::FunctionHeader {
+        &self.func.header
+    }
+
+    pub fn has_body(&self) -> bool {
+        self.func.has_body
     }
 }
 
@@ -429,6 +445,18 @@ impl<'a> StaticItem<'a> {
     pub fn type_(&self) -> &Type {
         &self.static_.type_
     }
+
+    pub fn expr(&self) -> &str {
+        &self.static_.expr
+    }
+
+    pub fn is_mutable(&self) -> bool {
+        self.static_.is_mutable
+    }
+
+    pub fn is_unsafe(&self) -> bool {
+        self.static_.is_unsafe
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -499,12 +527,21 @@ impl<'a> StructItem<'a> {
         })
     }
 
+    pub fn impl_ids(&self) -> impl Iterator<Item = &Id> {
+        self.struct_.impls.iter()
+    }
+
     pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
-        self.krate.all_impls().filter(|imp| {
-            let Type::ResolvedPath(path) = imp.for_() else {
-                return false;
+        self.impl_ids().map(|id| {
+            let item = &self.krate.index[id];
+            let rustdoc_types::ItemEnum::Impl(imp) = &item.inner else {
+                panic!("expected impl, got {:?}", item.inner);
             };
-            path.id == self.item.id
+            ImplItem {
+                krate: self.krate,
+                item,
+                impl_: imp,
+            }
         })
     }
 
@@ -529,6 +566,14 @@ impl<'a> StructItem<'a> {
     /// Iterator over struct impls that are not trait impls.
     pub fn associated_impls(&self) -> impl Iterator<Item = ImplItem> {
         self.impls().filter(|imp| imp.trait_().is_none())
+    }
+
+    pub fn kind(&self) -> &rustdoc_types::StructKind {
+        &self.struct_.kind
+    }
+
+    pub fn generics(&self) -> &rustdoc_types::Generics {
+        &self.struct_.generics
     }
 }
 
@@ -634,6 +679,44 @@ impl<'a> TraitItem<'a> {
     pub fn items(&self) -> impl Iterator<Item = &rustdoc_types::Item> {
         self.item_ids().map(|id| &self.krate.index[id])
     }
+
+    pub fn impl_ids(&self) -> impl Iterator<Item = &Id> {
+        self.trait_.implementations.iter()
+    }
+
+    pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
+        self.impl_ids().map(|id| {
+            let item = &self.krate.index[id];
+            let rustdoc_types::ItemEnum::Impl(imp) = &item.inner else {
+                panic!("expected impl, got {:?}", item.inner);
+            };
+            ImplItem {
+                krate: self.krate,
+                item,
+                impl_: imp,
+            }
+        })
+    }
+
+    pub fn generics(&self) -> &rustdoc_types::Generics {
+        &self.trait_.generics
+    }
+
+    pub fn bounds(&self) -> &[rustdoc_types::GenericBound] {
+        &self.trait_.bounds
+    }
+
+    pub fn is_auto(&self) -> bool {
+        self.trait_.is_auto
+    }
+
+    pub fn is_unsafe(&self) -> bool {
+        self.trait_.is_unsafe
+    }
+
+    pub fn is_dyn_compatible(&self) -> bool {
+        self.trait_.is_dyn_compatible
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -694,12 +777,21 @@ impl<'a> EnumItem<'a> {
         })
     }
 
+    pub fn impl_ids(&self) -> impl Iterator<Item = &Id> {
+        self.enum_.impls.iter()
+    }
+
     pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
-        self.krate.all_impls().filter(|imp| {
-            let Type::ResolvedPath(path) = imp.for_() else {
-                return false;
+        self.impl_ids().map(|id| {
+            let item = &self.krate.index[id];
+            let rustdoc_types::ItemEnum::Impl(imp) = &item.inner else {
+                panic!("expected impl, got {:?}", item.inner);
             };
-            path.id == self.item.id
+            ImplItem {
+                krate: self.krate,
+                item,
+                impl_: imp,
+            }
         })
     }
 
@@ -720,6 +812,14 @@ impl<'a> EnumItem<'a> {
     /// Iterator over struct impls that are not trait impls.
     pub fn associated_impls(&self) -> impl Iterator<Item = ImplItem> {
         self.impls().filter(|imp| imp.trait_().is_none())
+    }
+
+    pub fn generics(&self) -> &rustdoc_types::Generics {
+        &self.enum_.generics
+    }
+
+    pub fn has_stripped_variants(&self) -> bool {
+        self.enum_.has_stripped_variants
     }
 }
 
@@ -765,6 +865,10 @@ impl HasName for VariantItem<'_> {
 impl<'a> VariantItem<'a> {
     pub fn name(&self) -> &str {
         self.item.name.as_ref().unwrap()
+    }
+
+    pub fn kind(&self) -> &rustdoc_types::VariantKind {
+        &self.variant.kind
     }
 
     pub fn discriminant(&self) -> Option<&rustdoc_types::Discriminant> {
@@ -830,12 +934,21 @@ impl<'a> UnionItem<'a> {
         })
     }
 
+    pub fn impl_ids(&self) -> impl Iterator<Item = &Id> {
+        self.union.impls.iter()
+    }
+
     pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
-        self.krate.all_impls().filter(|imp| {
-            let Type::ResolvedPath(path) = imp.for_() else {
-                return false;
+        self.impl_ids().map(|id| {
+            let item = &self.krate.index[id];
+            let rustdoc_types::ItemEnum::Impl(imp) = &item.inner else {
+                panic!("expected impl, got {:?}", item.inner);
             };
-            path.id == self.item.id
+            ImplItem {
+                krate: self.krate,
+                item,
+                impl_: imp,
+            }
         })
     }
 
@@ -856,6 +969,14 @@ impl<'a> UnionItem<'a> {
     /// Iterator over struct impls that are not trait impls.
     pub fn associated_impls(&self) -> impl Iterator<Item = ImplItem> {
         self.impls().filter(|imp| imp.trait_().is_none())
+    }
+
+    pub fn generics(&self) -> &rustdoc_types::Generics {
+        &self.union.generics
+    }
+
+    pub fn has_stripped_fields(&self) -> bool {
+        self.union.has_stripped_fields
     }
 }
 
@@ -905,6 +1026,10 @@ impl<'a> TypeAliasItem<'a> {
 
     pub fn type_(&self) -> &Type {
         &self.type_alias.type_
+    }
+
+    pub fn generics(&self) -> &rustdoc_types::Generics {
+        &self.type_alias.generics
     }
 }
 
@@ -1009,6 +1134,18 @@ impl<'a> ImplItem<'a> {
 
     pub fn for_(&self) -> &rustdoc_types::Type {
         &self.impl_.for_
+    }
+
+    pub fn is_unsafe(&self) -> bool {
+        self.impl_.is_unsafe
+    }
+
+    pub fn generics(&self) -> &rustdoc_types::Generics {
+        &self.impl_.generics
+    }
+
+    pub fn provided_trait_methods(&self) -> &[String] {
+        &self.impl_.provided_trait_methods
     }
 }
 

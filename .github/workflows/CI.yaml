@@ -26,6 +26,23 @@ jobs:
           rustup install nightly
       - run: cargo test --all --verbose -- --include-ignored --nocapture
 
+  run-examples:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      RUST_BACKTRACE: full
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v2
+      - run: |
+          rustup update stable
+          rustup install nightly
+      - run: cargo run --example items --verbose
+      - run: cargo run --example downcast --verbose
+
   build-check:
     strategy:
       fail-fast: false

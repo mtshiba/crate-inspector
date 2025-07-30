@@ -20,6 +20,12 @@ fn main() {
             "#methods: {}",
             enm.impls().fold(0, |acc, i| acc + i.functions().count())
         );
+        println!("#associated_impls: {}", enm.associated_impls().count());
+        println!("#impls: {}", enm.impls().count());
+    }
+    for trt in krate.traits() {
+        println!("trait: {}", trt.name());
+        println!("#impls: {}", trt.impls().count());
     }
     for sub in krate.sub_modules() {
         println!("submodule: {}", sub.name());
