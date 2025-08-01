@@ -2,6 +2,10 @@
 
 Inspect the public APIs of Rust library crates
 
+## Prerequisite
+
+This crate requires that you have the nightly Rust toolchain installed, as it uses the latest `rustdoc` API (and does not require compiling with the nightly toolchain).
+
 ## Examples
 
 ### Getting items
