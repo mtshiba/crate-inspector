@@ -48,57 +48,57 @@ pub trait HasName {
 macro_rules! impl_items {
     ($ty: ident < $l: lifetime >) => {
         impl<$l> $ty<$l> {
-            pub fn constants(&self) -> impl Iterator<Item = ConstantItem> {
+            pub fn constants(&self) -> impl Iterator<Item = ConstantItem<'_>> {
                 self.items()
                     .filter_map(|item| self.krate().downcast::<ConstantItem>(item))
             }
 
-            pub fn functions(&self) -> impl Iterator<Item = FunctionItem> {
+            pub fn functions(&self) -> impl Iterator<Item = FunctionItem<'_>> {
                 self.items()
                     .filter_map(|item| self.krate().downcast::<FunctionItem>(item))
             }
 
-            pub fn structs(&self) -> impl Iterator<Item = StructItem> {
+            pub fn structs(&self) -> impl Iterator<Item = StructItem<'_>> {
                 self.items()
                     .filter_map(|item| self.krate().downcast::<StructItem>(item))
             }
 
-            pub fn enums(&self) -> impl Iterator<Item = EnumItem> {
+            pub fn enums(&self) -> impl Iterator<Item = EnumItem<'_>> {
                 self.items()
                     .filter_map(|item| self.krate().downcast::<EnumItem>(item))
             }
 
-            pub fn traits(&self) -> impl Iterator<Item = TraitItem> {
+            pub fn traits(&self) -> impl Iterator<Item = TraitItem<'_>> {
                 self.items()
                     .filter_map(|item| self.krate().downcast::<TraitItem>(item))
             }
 
-            pub fn type_aliases(&self) -> impl Iterator<Item = TypeAliasItem> {
+            pub fn type_aliases(&self) -> impl Iterator<Item = TypeAliasItem<'_>> {
                 self.items()
                     .filter_map(|item| self.krate().downcast::<TypeAliasItem>(item))
             }
 
-            pub fn trait_aliases(&self) -> impl Iterator<Item = TraitAliasItem> {
+            pub fn trait_aliases(&self) -> impl Iterator<Item = TraitAliasItem<'_>> {
                 self.items()
                     .filter_map(|item| self.krate().downcast::<TraitAliasItem>(item))
             }
 
-            pub fn unions(&self) -> impl Iterator<Item = UnionItem> {
+            pub fn unions(&self) -> impl Iterator<Item = UnionItem<'_>> {
                 self.items()
                     .filter_map(|item| self.krate().downcast::<UnionItem>(item))
             }
 
-            pub fn modules(&self) -> impl Iterator<Item = ModuleItem> {
+            pub fn modules(&self) -> impl Iterator<Item = ModuleItem<'_>> {
                 self.items()
                     .filter_map(|item| self.krate().downcast::<ModuleItem>(item))
             }
 
-            pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
+            pub fn impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
                 self.items()
                     .filter_map(|item| self.krate().downcast::<ImplItem>(item))
             }
 
-            pub fn uses(&self) -> impl Iterator<Item = UseItem> {
+            pub fn uses(&self) -> impl Iterator<Item = UseItem<'_>> {
                 self.items()
                     .filter_map(|item| self.krate().downcast::<UseItem>(item))
             }
@@ -110,49 +110,49 @@ macro_rules! impl_items {
             }
 
             /// Get a constant by its name.
-            pub fn get_constant(&self, name: &str) -> Option<ConstantItem> {
+            pub fn get_constant(&self, name: &str) -> Option<ConstantItem<'_>> {
                 self.constants().find(|constant| constant.name() == name)
             }
 
             /// Get a function by its name.
-            pub fn get_function(&self, name: &str) -> Option<FunctionItem> {
+            pub fn get_function(&self, name: &str) -> Option<FunctionItem<'_>> {
                 self.functions().find(|func| func.name() == name)
             }
 
             /// Get a struct by its name.
-            pub fn get_struct(&self, name: &str) -> Option<StructItem> {
+            pub fn get_struct(&self, name: &str) -> Option<StructItem<'_>> {
                 self.structs().find(|struct_| struct_.name() == name)
             }
 
             /// Get an enum by its name.
-            pub fn get_enum(&self, name: &str) -> Option<EnumItem> {
+            pub fn get_enum(&self, name: &str) -> Option<EnumItem<'_>> {
                 self.enums().find(|enum_| enum_.name() == name)
             }
 
             /// Get a trait by its name.
-            pub fn get_trait(&self, name: &str) -> Option<TraitItem> {
+            pub fn get_trait(&self, name: &str) -> Option<TraitItem<'_>> {
                 self.traits().find(|trait_| trait_.name() == name)
             }
 
             /// Get a type alias by its name.
-            pub fn get_type_alias(&self, name: &str) -> Option<TypeAliasItem> {
+            pub fn get_type_alias(&self, name: &str) -> Option<TypeAliasItem<'_>> {
                 self.type_aliases()
                     .find(|type_alias| type_alias.name() == name)
             }
 
             /// Get a trait alias by its name.
-            pub fn get_trait_alias(&self, name: &str) -> Option<TraitAliasItem> {
+            pub fn get_trait_alias(&self, name: &str) -> Option<TraitAliasItem<'_>> {
                 self.trait_aliases()
                     .find(|trait_alias| trait_alias.name() == name)
             }
 
             /// Get a union by its name.
-            pub fn get_union(&self, name: &str) -> Option<UnionItem> {
+            pub fn get_union(&self, name: &str) -> Option<UnionItem<'_>> {
                 self.unions().find(|union| union.name() == name)
             }
 
             /// Get a module by its name.
-            pub fn get_module(&self, name: &str) -> Option<ModuleItem> {
+            pub fn get_module(&self, name: &str) -> Option<ModuleItem<'_>> {
                 self.modules().find(|module| module.name() == name)
             }
         }
@@ -511,7 +511,7 @@ impl<'a> StructItem<'a> {
         }
     }
 
-    pub fn fields(&self) -> Option<impl Iterator<Item = FieldItem>> {
+    pub fn fields(&self) -> Option<impl Iterator<Item = FieldItem<'_>>> {
         self.field_ids().map(|ids| {
             ids.map(|id| {
                 let item = &self.krate.index[id];
@@ -531,7 +531,7 @@ impl<'a> StructItem<'a> {
         self.struct_.impls.iter()
     }
 
-    pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.impl_ids().map(|id| {
             let item = &self.krate.index[id];
             let rustdoc_types::ItemEnum::Impl(imp) = &item.inner else {
@@ -547,24 +547,24 @@ impl<'a> StructItem<'a> {
 
     /// Iterate over struct impls that are trait impls (`impl <Trait> for <Struct> { ... }`).
     /// These may include auto/blanket impls.
-    pub fn trait_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn trait_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.impls().filter(|imp| imp.trait_().is_some())
     }
 
     /// Iterate over struct blanket impls (`impl<T: ...> <Trait> for <Struct<T>> { ... }`).
-    pub fn blanket_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn blanket_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.trait_impls()
             .filter(|imp| imp.impl_.blanket_impl.is_some())
     }
 
     /// Iterate over struct non-blanket impls (`impl <Trait> for <Struct> { ... }`).
-    pub fn non_blanket_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn non_blanket_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.trait_impls()
             .filter(|imp| imp.impl_.blanket_impl.is_none())
     }
 
     /// Iterator over struct impls that are not trait impls.
-    pub fn associated_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn associated_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.impls().filter(|imp| imp.trait_().is_none())
     }
 
@@ -684,7 +684,7 @@ impl<'a> TraitItem<'a> {
         self.trait_.implementations.iter()
     }
 
-    pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.impl_ids().map(|id| {
             let item = &self.krate.index[id];
             let rustdoc_types::ItemEnum::Impl(imp) = &item.inner else {
@@ -763,7 +763,7 @@ impl<'a> EnumItem<'a> {
         self.enum_.variants.iter()
     }
 
-    pub fn variants(&self) -> impl Iterator<Item = VariantItem> {
+    pub fn variants(&self) -> impl Iterator<Item = VariantItem<'_>> {
         self.variant_ids().map(|id| {
             let item = &self.krate.index[id];
             let rustdoc_types::ItemEnum::Variant(variant) = &item.inner else {
@@ -781,7 +781,7 @@ impl<'a> EnumItem<'a> {
         self.enum_.impls.iter()
     }
 
-    pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.impl_ids().map(|id| {
             let item = &self.krate.index[id];
             let rustdoc_types::ItemEnum::Impl(imp) = &item.inner else {
@@ -795,22 +795,22 @@ impl<'a> EnumItem<'a> {
         })
     }
 
-    pub fn trait_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn trait_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.impls().filter(|imp| imp.trait_().is_some())
     }
 
-    pub fn blanket_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn blanket_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.trait_impls()
             .filter(|imp| imp.impl_.blanket_impl.is_some())
     }
 
-    pub fn non_blanket_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn non_blanket_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.trait_impls()
             .filter(|imp| imp.impl_.blanket_impl.is_none())
     }
 
     /// Iterator over struct impls that are not trait impls.
-    pub fn associated_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn associated_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.impls().filter(|imp| imp.trait_().is_none())
     }
 
@@ -920,7 +920,7 @@ impl<'a> UnionItem<'a> {
         self.union.fields.iter()
     }
 
-    pub fn fields(&self) -> impl Iterator<Item = FieldItem> {
+    pub fn fields(&self) -> impl Iterator<Item = FieldItem<'_>> {
         self.field_ids().map(|id| {
             let item = &self.krate.index[id];
             let rustdoc_types::ItemEnum::StructField(field) = &item.inner else {
@@ -938,7 +938,7 @@ impl<'a> UnionItem<'a> {
         self.union.impls.iter()
     }
 
-    pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.impl_ids().map(|id| {
             let item = &self.krate.index[id];
             let rustdoc_types::ItemEnum::Impl(imp) = &item.inner else {
@@ -952,22 +952,22 @@ impl<'a> UnionItem<'a> {
         })
     }
 
-    pub fn trait_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn trait_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.impls().filter(|imp| imp.trait_().is_some())
     }
 
-    pub fn blanket_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn blanket_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.trait_impls()
             .filter(|imp| imp.impl_.blanket_impl.is_some())
     }
 
-    pub fn non_blanket_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn non_blanket_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.trait_impls()
             .filter(|imp| imp.impl_.blanket_impl.is_none())
     }
 
     /// Iterator over struct impls that are not trait impls.
-    pub fn associated_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn associated_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.impls().filter(|imp| imp.trait_().is_none())
     }
 
@@ -1309,20 +1309,20 @@ impl Crate {
         Some(T::new(self, item, inner))
     }
 
-    pub fn all_modules(&self) -> impl Iterator<Item = ModuleItem> {
+    pub fn all_modules(&self) -> impl Iterator<Item = ModuleItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<ModuleItem>(item))
     }
 
     /// root module included
-    pub fn modules(&self) -> impl Iterator<Item = ModuleItem> {
+    pub fn modules(&self) -> impl Iterator<Item = ModuleItem<'_>> {
         self.all_modules().filter(|module| module.is_crate_item())
     }
 
     /// root module not included
     ///
     /// submodules of submodules not included
-    pub fn sub_modules(&self) -> impl Iterator<Item = ModuleItem> {
+    pub fn sub_modules(&self) -> impl Iterator<Item = ModuleItem<'_>> {
         self.all_modules().filter(|module| {
             module
                 .parent()
@@ -1332,134 +1332,134 @@ impl Crate {
 
     /// Enumerates all functions including submodules.
     /// methods & associated functions & function declarations included
-    pub fn all_functions(&self) -> impl Iterator<Item = FunctionItem> {
+    pub fn all_functions(&self) -> impl Iterator<Item = FunctionItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<FunctionItem>(item))
     }
 
     /// Enumerates root module functions.
     /// methods & associated functions & function declarations not included
-    pub fn functions(&self) -> impl Iterator<Item = FunctionItem> {
+    pub fn functions(&self) -> impl Iterator<Item = FunctionItem<'_>> {
         self.all_functions().filter(|func| {
             func.is_root_item() && !func.is_method() && !func.is_associated() && func.func.has_body
         })
     }
 
     /// Enumerates all constants including submodules
-    pub fn all_constants(&self) -> impl Iterator<Item = ConstantItem> {
+    pub fn all_constants(&self) -> impl Iterator<Item = ConstantItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<ConstantItem>(item))
     }
 
     /// Enumerates root module constants
-    pub fn constants(&self) -> impl Iterator<Item = ConstantItem> {
+    pub fn constants(&self) -> impl Iterator<Item = ConstantItem<'_>> {
         self.all_constants()
             .filter(|constant| constant.is_root_item())
     }
 
     /// Enumerates all statics including submodules
-    pub fn all_statics(&self) -> impl Iterator<Item = StaticItem> {
+    pub fn all_statics(&self) -> impl Iterator<Item = StaticItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<StaticItem>(item))
     }
 
     /// Enumerates root module statics
-    pub fn statics(&self) -> impl Iterator<Item = StaticItem> {
+    pub fn statics(&self) -> impl Iterator<Item = StaticItem<'_>> {
         self.all_statics().filter(|static_| static_.is_root_item())
     }
 
     /// Enumerates all structs including submodules
-    pub fn all_structs(&self) -> impl Iterator<Item = StructItem> {
+    pub fn all_structs(&self) -> impl Iterator<Item = StructItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<StructItem>(item))
     }
 
     /// Enumerates root module structs
-    pub fn structs(&self) -> impl Iterator<Item = StructItem> {
+    pub fn structs(&self) -> impl Iterator<Item = StructItem<'_>> {
         self.all_structs().filter(|struct_| struct_.is_root_item())
     }
 
     /// Enumerates all traits including submodules
-    pub fn all_traits(&self) -> impl Iterator<Item = TraitItem> {
+    pub fn all_traits(&self) -> impl Iterator<Item = TraitItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<TraitItem>(item))
     }
 
     /// Enumerates root module traits
-    pub fn traits(&self) -> impl Iterator<Item = TraitItem> {
+    pub fn traits(&self) -> impl Iterator<Item = TraitItem<'_>> {
         self.all_traits().filter(|trait_| trait_.is_root_item())
     }
 
     /// Enumerates all enums including submodules
-    pub fn all_enums(&self) -> impl Iterator<Item = EnumItem> {
+    pub fn all_enums(&self) -> impl Iterator<Item = EnumItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<EnumItem>(item))
     }
 
     /// Enumerates root module enums
-    pub fn enums(&self) -> impl Iterator<Item = EnumItem> {
+    pub fn enums(&self) -> impl Iterator<Item = EnumItem<'_>> {
         self.all_enums().filter(|enum_| enum_.is_root_item())
     }
 
-    pub fn all_type_aliases(&self) -> impl Iterator<Item = TypeAliasItem> {
+    pub fn all_type_aliases(&self) -> impl Iterator<Item = TypeAliasItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<TypeAliasItem>(item))
     }
 
-    pub fn type_aliases(&self) -> impl Iterator<Item = TypeAliasItem> {
+    pub fn type_aliases(&self) -> impl Iterator<Item = TypeAliasItem<'_>> {
         self.all_type_aliases()
             .filter(|type_alias| type_alias.is_root_item())
     }
 
-    pub fn all_trait_aliases(&self) -> impl Iterator<Item = TraitAliasItem> {
+    pub fn all_trait_aliases(&self) -> impl Iterator<Item = TraitAliasItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<TraitAliasItem>(item))
     }
 
-    pub fn trait_aliases(&self) -> impl Iterator<Item = TraitAliasItem> {
+    pub fn trait_aliases(&self) -> impl Iterator<Item = TraitAliasItem<'_>> {
         self.all_trait_aliases()
             .filter(|trait_alias| trait_alias.is_root_item())
     }
 
-    pub fn all_unions(&self) -> impl Iterator<Item = UnionItem> {
+    pub fn all_unions(&self) -> impl Iterator<Item = UnionItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<UnionItem>(item))
     }
 
-    pub fn unions(&self) -> impl Iterator<Item = UnionItem> {
+    pub fn unions(&self) -> impl Iterator<Item = UnionItem<'_>> {
         self.all_unions().filter(|union| union.is_root_item())
     }
 
     /// Enumerates all referenced impls including submodules, std
-    pub fn all_impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn all_impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<ImplItem>(item))
     }
 
     /// Enumerates root module impls
-    pub fn impls(&self) -> impl Iterator<Item = ImplItem> {
+    pub fn impls(&self) -> impl Iterator<Item = ImplItem<'_>> {
         self.all_impls().filter(|imp| imp.is_root_item())
     }
 
     /// Enumerates all macros including submodules
-    pub fn all_macros(&self) -> impl Iterator<Item = MacroItem> {
+    pub fn all_macros(&self) -> impl Iterator<Item = MacroItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<MacroItem>(item))
     }
 
     /// Enumerates root module macros
-    pub fn macros(&self) -> impl Iterator<Item = MacroItem> {
+    pub fn macros(&self) -> impl Iterator<Item = MacroItem<'_>> {
         self.all_macros().filter(|macro_| macro_.is_root_item())
     }
 
     /// Enumerates all uses including submodules
-    pub fn all_uses(&self) -> impl Iterator<Item = UseItem> {
+    pub fn all_uses(&self) -> impl Iterator<Item = UseItem<'_>> {
         self.all_items()
             .filter_map(|item| self.krate().downcast::<UseItem>(item))
     }
 
     /// Enumerates root module uses
-    pub fn uses(&self) -> impl Iterator<Item = UseItem> {
+    pub fn uses(&self) -> impl Iterator<Item = UseItem<'_>> {
         self.all_uses().filter(|import| import.is_root_item())
     }
 
@@ -1470,49 +1470,49 @@ impl Crate {
     }
 
     /// Get a constant by its name.
-    pub fn get_constant(&self, name: &str) -> Option<ConstantItem> {
+    pub fn get_constant(&self, name: &str) -> Option<ConstantItem<'_>> {
         self.constants().find(|constant| constant.name() == name)
     }
 
     /// Get a function by its name.
-    pub fn get_function(&self, name: &str) -> Option<FunctionItem> {
+    pub fn get_function(&self, name: &str) -> Option<FunctionItem<'_>> {
         self.functions().find(|func| func.name() == name)
     }
 
     /// Get a struct by its name.
-    pub fn get_struct(&self, name: &str) -> Option<StructItem> {
+    pub fn get_struct(&self, name: &str) -> Option<StructItem<'_>> {
         self.structs().find(|struct_| struct_.name() == name)
     }
 
     /// Get an enum by its name.
-    pub fn get_enum(&self, name: &str) -> Option<EnumItem> {
+    pub fn get_enum(&self, name: &str) -> Option<EnumItem<'_>> {
         self.enums().find(|enum_| enum_.name() == name)
     }
 
     /// Get a trait by its name.
-    pub fn get_trait(&self, name: &str) -> Option<TraitItem> {
+    pub fn get_trait(&self, name: &str) -> Option<TraitItem<'_>> {
         self.traits().find(|trait_| trait_.name() == name)
     }
 
     /// Get a type alias by its name.
-    pub fn get_type_alias(&self, name: &str) -> Option<TypeAliasItem> {
+    pub fn get_type_alias(&self, name: &str) -> Option<TypeAliasItem<'_>> {
         self.type_aliases()
             .find(|type_alias| type_alias.name() == name)
     }
 
     /// Get a trait alias by its name.
-    pub fn get_trait_alias(&self, name: &str) -> Option<TraitAliasItem> {
+    pub fn get_trait_alias(&self, name: &str) -> Option<TraitAliasItem<'_>> {
         self.trait_aliases()
             .find(|trait_alias| trait_alias.name() == name)
     }
 
     /// Get a union by its name.
-    pub fn get_union(&self, name: &str) -> Option<UnionItem> {
+    pub fn get_union(&self, name: &str) -> Option<UnionItem<'_>> {
         self.unions().find(|union| union.name() == name)
     }
 
     /// Get a module by its name.
-    pub fn get_module(&self, name: &str) -> Option<ModuleItem> {
+    pub fn get_module(&self, name: &str) -> Option<ModuleItem<'_>> {
         self.modules().find(|module| module.name() == name)
     }
 }

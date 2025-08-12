@@ -194,7 +194,7 @@ pub fn type_to_string(ty: &Type) -> String {
             s
         }
         Type::Infer => "_".to_string(),
-        Type::Generic(gen) => gen.to_string(),
+        Type::Generic(generic) => generic.to_string(),
         Type::Slice(type_) => {
             format!("[{}]", type_to_string(type_))
         }
