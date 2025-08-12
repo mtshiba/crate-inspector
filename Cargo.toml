@@ -1,6 +1,6 @@
 [package]
 name = "crate-inspector"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 authors = ["Shunsuke Shibayama <sbym1346@gmail.com>"]
 description = "A library to inspect the public APIs of Rust crates"
@@ -12,7 +12,7 @@ documentation = "https://docs.rs/crate-inspector"
 
 [dependencies]
 rustdoc-json = "0.9.6"
-rustdoc-types = "0.54.0"
+rustdoc-types = "0.55.0"
 serde_json = "1.0"
 
 [lib]

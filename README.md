@@ -66,6 +66,7 @@ Here is a table mapping crate-inspector versions to corresponding rustdoc versio
 | 0.1             | 0.23    |
 | 0.2             | 0.32    |
 | 0.3             | 0.54    |
+| 0.4             | 0.55    |
 
 ## License
 
